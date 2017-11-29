@@ -119,6 +119,7 @@
 	rtc@56 {
 		compatible = "abracon,abeoz9s3";
 		reg = <0x56>;
+		trickle-resistor-ohms = <5000>;
 	};
 };
 

@@ -137,10 +137,42 @@
 struct abeoz9s3_rtc_data {
 	struct i2c_client *client;
 	struct rtc_device *rtc;
+	u8 resistors;
 	struct mutex lock;
 	struct device		*hwmon_dev;
 	struct thermal_zone_device	*tz;
 };
+
+struct abeoz9s3_resistors {
+	u32 ohms;
+	u8 mode;
+};
+
+static const struct abeoz9s3_resistors abeoz9s3_resistors[] = {
+	{0,	0},
+	{1000,	ABEOZ9S3_REG_EEPROM_R1K},
+	{5000,	ABEOZ9S3_REG_EEPROM_R5K},
+	{6000,	ABEOZ9S3_REG_EEPROM_R5K | ABEOZ9S3_REG_EEPROM_R1K},
+	{20000, ABEOZ9S3_REG_EEPROM_R20K},
+	{21000,	ABEOZ9S3_REG_EEPROM_R20K | ABEOZ9S3_REG_EEPROM_R1K},
+	{25000,	ABEOZ9S3_REG_EEPROM_R20K | ABEOZ9S3_REG_EEPROM_R5K},
+	{26000, ABEOZ9S3_REG_EEPROM_R20K | ABEOZ9S3_REG_EEPROM_R5K |
+		ABEOZ9S3_REG_EEPROM_R1K},
+	{80000,	ABEOZ9S3_REG_EEPROM_R80K},
+	{81000,	ABEOZ9S3_REG_EEPROM_R80K | ABEOZ9S3_REG_EEPROM_R1K},
+	{85000,	ABEOZ9S3_REG_EEPROM_R80K | ABEOZ9S3_REG_EEPROM_R5K},
+	{86000,	ABEOZ9S3_REG_EEPROM_R80K | ABEOZ9S3_REG_EEPROM_R5K |
+		ABEOZ9S3_REG_EEPROM_R1K},
+	{100000,ABEOZ9S3_REG_EEPROM_R80K | ABEOZ9S3_REG_EEPROM_R20K},
+	{101000,ABEOZ9S3_REG_EEPROM_R80K | ABEOZ9S3_REG_EEPROM_R20K |
+		ABEOZ9S3_REG_EEPROM_R1K},
+	{105000,ABEOZ9S3_REG_EEPROM_R80K | ABEOZ9S3_REG_EEPROM_R20K |
+		ABEOZ9S3_REG_EEPROM_R5K},
+	{106000,ABEOZ9S3_REG_EEPROM_R80K | ABEOZ9S3_REG_EEPROM_R20K |
+		ABEOZ9S3_REG_EEPROM_R5K | ABEOZ9S3_REG_EEPROM_R1K}
+};
+
+
 
 /*
  * Try and match register bits w/ fixed null values to see whether we
@@ -366,9 +398,10 @@ static int abeoz9s3_rtc_proc(struct device *dev, struct seq_file *seq)
  * everything went ok and a negative value upon error. Note: this function
  * is called early during init and hence does need mutex protection.
  */
-static int abeoz9s3_rtc_setup(struct device *dev)
+static int abeoz9s3_rtc_setup(struct abeoz9s3_rtc_data *data)
 {
-	struct i2c_client *client = to_i2c_client(dev);
+	struct i2c_client *client = data->client;
+	struct device *dev = &client->dev;
 	int ret;
 
 	/* Control1 register setup */
@@ -442,6 +475,9 @@ static int abeoz9s3_rtc_setup(struct device *dev)
 	/* Enable Termometer */
 	ret |= (ABEOZ9S3_REG_EEPROM_THE);
 
+	/* Enable specified resistance */
+	ret |= data->resistors;
+
 	ret = i2c_smbus_write_byte_data(client, ABEOZ9S3_REG_EEPROM_CTL, ret);
 	if (ret < 0) {
 		dev_err(dev, "%s: unable to set EEPROM Control register (%d)\n",
@@ -474,6 +510,37 @@ static const struct rtc_class_ops rtc_ops = {
 	.proc 		= abeoz9s3_rtc_proc,
 };
 
+static void abeoz9s3_get_resistance(struct abeoz9s3_rtc_data *data)
+{
+#ifdef CONFIG_OF
+	struct i2c_client *client = data->client;
+	struct device_node *node = dev_of_node(&client->dev);
+	int ret, idx, last;
+	u32 ohms;
+
+	if (!node)
+		return;
+
+	ret = of_property_read_u32(node, "trickle-resistor-ohms", &ohms);
+	if (ret)
+		return;
+
+	last = ARRAY_SIZE(abeoz9s3_resistors) - 1;
+	for (idx = 0; idx <= last; idx++) {
+		if (abeoz9s3_resistors[idx].ohms >= ohms) {
+			data->resistors = abeoz9s3_resistors[idx].mode;
+			break;
+		}
+	}
+
+	if (idx > last)
+		data->resistors = abeoz9s3_resistors[--idx].mode;
+
+	dev_info(&client->dev, "trickle-charger resistance %u Ohm\n",
+		abeoz9s3_resistors[idx].ohms);
+#endif
+}
+
 static int abeoz9s3_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
@@ -502,7 +569,9 @@ static int abeoz9s3_probe(struct i2c_client *client,
 	mutex_init(&data->lock);
 	data->client = client;
 
-	ret = abeoz9s3_rtc_setup(dev);
+	abeoz9s3_get_resistance(data);
+
+	ret = abeoz9s3_rtc_setup(data);
 	if (ret)
 		goto err;
 
