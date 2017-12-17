@@ -111,6 +111,48 @@
 	status = "okay";
 };
 
+&spib {
+	num-cs = <1>;
+
+	status = "okay";
+
+	boot_flash: n25q128a11@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q128a11";
+		spi-max-frequency = <500000>;
+		m25p,fast-read;
+		reg = <0>;
+
+		partition@0 {
+			label = "bootloader";
+			reg = <0x0 0x80000>;
+			read-only;
+		};
+
+		partition@1 {
+			label = "envset";
+			reg = <0x80000 0x10000>;
+		};
+
+		partition@2 {
+			label = "firmware";
+			reg = <0x90000 0x10000>;
+		};
+
+		partition@3 {
+			label = "fdt";
+			reg = <0xA0000 0x10000>;
+		};
+
+		partition@4 {
+			label = "multiimage";
+			reg = <0xB0000 0xDD0000>;
+			read-only;
+		};
+	};
+};
+
 &spi0 {
 	reg-io-width = <4>;
 	num-cs = <3>;
