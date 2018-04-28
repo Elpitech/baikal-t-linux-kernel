@@ -123,11 +123,15 @@ struct pcf85363 {
 static int pcf85363_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pcf85363 *pcf85363 = dev_get_drvdata(dev);
-	unsigned char buf[DT_YEARS + 1];
-	int ret, len = sizeof(buf);
+	unsigned char tmp[10];
+        unsigned char *buf = &tmp[2];
+	int ret, len = sizeof(tmp);
 
-	/* read the RTC date and time registers all at once */
-	ret = regmap_bulk_read(pcf85363->regmap, DT_100THS, buf, len);
+	/* Read the RTC date and time registers all at once. We also have to
+	 * start reading from two last bytes due to a weird problem causing
+	 * empty minutes/hours bytes returned when initial address is 0x0.
+	 */
+	ret = regmap_bulk_read(pcf85363->regmap, CTRL_STOP_EN, tmp, len);
 	if (ret) {
 		dev_err(dev, "%s: error %d\n", __func__, ret);
 		return ret;
@@ -152,7 +156,7 @@ static int pcf85363_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int pcf85363_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pcf85363 *pcf85363 = dev_get_drvdata(dev);
-	unsigned char tmp[11];
+	unsigned char tmp[10];
 	unsigned char *buf = &tmp[2];
 	int ret;
 
@@ -293,24 +297,6 @@ static const struct rtc_class_ops rtc_ops_alarm = {
 	.alarm_irq_enable = pcf85363_rtc_alarm_irq_enable,
 };
 
-static int pcf85363_nvram_read(void *priv, unsigned int offset, void *val,
-			       size_t bytes)
-{
-	struct pcf85363 *pcf85363 = priv;
-
-	return regmap_bulk_read(pcf85363->regmap, CTRL_RAM + offset,
-				val, bytes);
-}
-
-static int pcf85363_nvram_write(void *priv, unsigned int offset, void *val,
-				size_t bytes)
-{
-	struct pcf85363 *pcf85363 = priv;
-
-	return regmap_bulk_write(pcf85363->regmap, CTRL_RAM + offset,
-				 val, bytes);
-}
-
 static const struct regmap_config regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -320,15 +306,8 @@ static const struct regmap_config regmap_config = {
 static int pcf85363_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
+	const struct rtc_class_ops *ops;
 	struct pcf85363 *pcf85363;
-	struct nvmem_config nvmem_cfg = {
-		.name = "pcf85363-",
-		.word_size = 1,
-		.stride = 1,
-		.size = NVRAM_SIZE,
-		.reg_read = pcf85363_nvram_read,
-		.reg_write = pcf85363_nvram_write,
-	};
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
@@ -348,11 +327,7 @@ static int pcf85363_probe(struct i2c_client *client,
 	pcf85363->dev = &client->dev;
 	i2c_set_clientdata(client, pcf85363);
 
-	pcf85363->rtc = devm_rtc_allocate_device(pcf85363->dev);
-	if (IS_ERR(pcf85363->rtc))
-		return PTR_ERR(pcf85363->rtc);
-
-	pcf85363->rtc->ops = &rtc_ops;
+	ops = &rtc_ops;
 
 	if (client->irq > 0) {
 		regmap_write(pcf85363->regmap, CTRL_FLAGS, 0);
@@ -365,29 +340,38 @@ static int pcf85363_probe(struct i2c_client *client,
 		if (ret)
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
 		else
-			pcf85363->rtc->ops = &rtc_ops_alarm;
+			ops = &rtc_ops_alarm;
 	}
 
-	ret = rtc_register_device(pcf85363->rtc);
+	pcf85363->rtc = devm_rtc_device_register(pcf85363->dev,
+		pcf85363_driver.driver.name, ops, THIS_MODULE);
 
-	nvmem_cfg.priv = pcf85363;
-	rtc_nvmem_register(pcf85363->rtc, &nvmem_cfg);
-
-	return ret;
+	return PTR_ERR_OR_ZERO(pcf85363->rtc);;
 }
 
+static const struct i2c_device_id pcf85363_id[] = {
+        { "pcf85363", 0 },
+        { "pcf85263", 0 },
+        {}
+};
+MODULE_DEVICE_TABLE(i2c, pcf85363_id);
+
+#ifdef CONFIG_OF
 static const struct of_device_id dev_ids[] = {
 	{ .compatible = "nxp,pcf85363" },
+	{ .compatible = "nxp,pcf85263" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dev_ids);
+#endif
 
 static struct i2c_driver pcf85363_driver = {
 	.driver	= {
 		.name	= "pcf85363",
 		.of_match_table = of_match_ptr(dev_ids),
 	},
-	.probe	= pcf85363_probe,
+	.probe		= pcf85363_probe,
+	.id_table	= pcf85363_id,
 };
 
 module_i2c_driver(pcf85363_driver);
