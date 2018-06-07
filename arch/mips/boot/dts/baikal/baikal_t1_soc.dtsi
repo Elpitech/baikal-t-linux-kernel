@@ -24,6 +24,7 @@
 		serial1 = &uart1;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
+		bc   = &bc;
 		ssi0 = &spi0;
 		ssi1 = &spi1;
 		ssi2 = &spi2;
@@ -269,6 +270,12 @@
 		interrupt-parent = <&gic>;
 
 		ranges;
+
+		bc: bc@1F040000 {
+			compatible = "be,bc";
+			reg = <0x1F040000 0x100>;
+			status = "disabled";
+		};
 
 		gpio: gpio@1F044000 {
 			compatible = "snps,dw-apb-gpio";

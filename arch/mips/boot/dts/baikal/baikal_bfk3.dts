@@ -82,6 +82,10 @@
 	status = "okay";
 };
 
+&bc {
+	status = "okay";
+};
+
 &spi0 {
 	reg-io-width = <4>;
 	num-cs = <2>;

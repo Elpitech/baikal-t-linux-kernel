@@ -49,6 +49,9 @@ choice
 config MACH_BAIKAL_BFK
 bool "Baikal-T BFK board"
 
+    # Boot Controller support
+    select BE_BC
+
     # Hardware features
     select HW_HAS_PCI
     select HW_PERF_EVENTS
@@ -105,6 +108,7 @@ bool "Baikal-T BFK board"
     # SPI bus support
     select SPI_DESIGNWARE
     select SPI_DW_MMIO
+    select SPI_DW_BOOT
 
     # USB Support
     select USB_DWC3
@@ -118,6 +122,9 @@ bool "Baikal-T BFK board"
 config MACH_BAIKAL_BFK3
 bool "Baikal-T1 BFK3 board"
 
+    # Boot Controller support
+    select BE_BC
+
     # Hardware features
     select HW_HAS_PCI
     select HW_PERF_EVENTS
@@ -174,6 +181,7 @@ bool "Baikal-T1 BFK3 board"
     # SPI bus support
     select SPI_DESIGNWARE
     select SPI_DW_MMIO
+    select SPI_DW_BOOT
 
     # USB Support
     select USB_DWC3
@@ -186,6 +194,9 @@ bool "Baikal-T1 BFK3 board"
 
 config MACH_BAIKAL_MODULE
 bool "Baikal-T Module board"
+
+    # Boot Controller support
+    select BE_BC
 
     # Hardware features
     select HW_HAS_PCI
@@ -242,6 +253,7 @@ bool "Baikal-T Module board"
     # SPI bus support
     select SPI_DESIGNWARE
     select SPI_DW_MMIO
+    select SPI_DW_BOOT
 
     # USB Support
     select USB_DWC3
@@ -257,6 +269,9 @@ help
 
 config MACH_BAIKAL_QEMU
 bool "Baikal-T QEMU simulator"
+
+    # Boot Controller support
+    select BE_BC
 
     # Errata set 
     select PAGE_SIZE_16KB
@@ -303,6 +318,7 @@ bool "Baikal-T QEMU simulator"
     # SPI bus support
     select SPI_DESIGNWARE
     select SPI_DW_MMIO
+    select SPI_DW_BOOT
 
     # DTB select
     select DTB_BAIKAL_QEMU
@@ -429,5 +445,8 @@ config SYS_HAS_CPU_MIPS32_R5
 config WDT_MIPS_GIC
     bool
     default n
+
+config BE_BC
+    tristate "boot controller"
 
 source "drivers/dma/baikal/Kconfig"
