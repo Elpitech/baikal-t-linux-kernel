@@ -142,6 +142,18 @@ struct dw_spi {
 #endif
 };
 
+struct dw_boot_spi {
+	void __iomem *regs;
+	unsigned long paddr;
+
+	u32	fifo_len;       /* depth of the FIFO buffer */
+	u32	max_freq;       /* max bus freq supported */
+	u32	reg_io_width;   /* DR I/O width in bytes */
+	u32	bus_num;
+	u32	num_cs;         /* supported slave numbers */
+	struct clk			*clk;
+};
+
 static inline u32 dw_readl(struct dw_spi *dws, u32 offset)
 {
 	return __raw_readl(dws->regs + offset);
@@ -152,6 +164,11 @@ static inline u16 dw_readw(struct dw_spi *dws, u32 offset)
 	return __raw_readw(dws->regs + offset);
 }
 
+static inline u32 dw_boot_readl(struct dw_boot_spi *dws, u32 offset)
+{
+	return __raw_readl(dws->regs + offset);
+}
+
 static inline void dw_writel(struct dw_spi *dws, u32 offset, u32 val)
 {
 	__raw_writel(val, dws->regs + offset);
@@ -160,6 +177,11 @@ static inline void dw_writel(struct dw_spi *dws, u32 offset, u32 val)
 static inline void dw_writew(struct dw_spi *dws, u32 offset, u16 val)
 {
 	__raw_writew(val, dws->regs + offset);
+}
+
+static inline void dw_boot_writel(struct dw_boot_spi *dws, u32 offset, u32 val)
+{
+	__raw_writel(val, dws->regs + offset);
 }
 
 static inline u32 dw_read_io_reg(struct dw_spi *dws, u32 offset)

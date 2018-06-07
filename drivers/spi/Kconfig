@@ -230,6 +230,10 @@ config SPI_DW_MMIO
 	tristate "Memory-mapped io interface driver for DW SPI core"
 	depends on SPI_DESIGNWARE
 
+config SPI_DW_BOOT
+	tristate "interface driver for DW SPI Boot flash (without GPIO, IRQ)"
+	depends on SPI_DESIGNWARE
+
 config SPI_DLN2
        tristate "Diolan DLN-2 USB SPI adapter"
        depends on MFD_DLN2

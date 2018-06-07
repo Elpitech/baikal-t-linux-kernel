@@ -153,6 +153,43 @@
 	status = "okay";
 };
 
+&spi2 {
+	reg-io-width = <4>;
+	num-cs = <1>;
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		status = "okay";
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <100000>;
+
+		/* total size 16MB */
+		part@0 {
+			label = "UBOOT";
+			reg = <0x0 0x80000>;
+		};
+		part@80000 {
+			label = "ENVSET";
+			reg = <0x80000 0x10000>;
+		};
+		part@90000 {
+			label = "FIRMWARE";
+			reg = <0x90000 0x10000>;
+		};
+		part@A0000 {
+			label = "FDT";
+			reg = <0xa0000 0x10000>;
+		};
+		part@B0000 {
+			label = "MULTIIMAGE";
+			reg = <0xb0000 0xf50000>;
+		};
+	};
+};
+
 &pvt {
 	status = "okay";
 };
