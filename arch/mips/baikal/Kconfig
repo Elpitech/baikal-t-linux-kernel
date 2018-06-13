@@ -47,6 +47,14 @@ help
 
 if BAIKAL_ERRATA
 
+config BAIKAL_ERRATA_XGMAC
+    bool "Fix for MMD Devices in package registers swap in XGMAC"
+    help
+      Fix for MMD Devices in package registers swap in XGMAC in
+      early Baikal-T SoCs
+
+      If unsure, say Y.
+
 endif # BAIKAL_ERRATA
 endif # ARCH_BAIKAL
 endif # MACH_BAIKAL
