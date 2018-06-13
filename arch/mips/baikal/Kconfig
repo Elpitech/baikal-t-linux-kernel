@@ -1,0 +1,56 @@
+# 
+# Baikal-T/T1 SOC platform support code.
+#
+# Copyright (C) 2014-2017 Baikal Electronics JSC
+# 
+# Authors:
+# Dmitry Dunaev <dmitry.dunaev@baikalelectronics.com>
+# Alexander Sazonov <Alexander.Sazonov@baikalelectronics.ru>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+
+if MIPS_BAIKAL
+
+choice
+        prompt "Baikal CPU Support"
+        default ARCH_BAIKAL
+
+config ARCH_BAIKAL
+bool "BAIKAL-T MIPS CPU"
+    select OF_EARLY_FLATTREE
+    select GENERIC_SCHED_CLOCK
+    select NO_IOPORT
+    select SOC_BUS
+
+help
+  Baikal-T (MIPS32 P5600) SoC based systems
+
+endchoice
+
+menuconfig BAIKAL_ERRATA
+bool "Baikal SoC Errata Fix"
+help
+  Select this option if you want to fix known Baikal Errata
+
+if BAIKAL_ERRATA
+
+endif # BAIKAL_ERRATA
+endif # ARCH_BAIKAL
+endif # MACH_BAIKAL
+
+config SYS_HAS_CPU_MIPS32_R5
+    bool
+    default n
