@@ -74,7 +74,7 @@ MODULE_PARM_DESC(phyaddr, "Physical device address");
 #define STMMAC_TX_THRESH	(DMA_TX_SIZE / 4)
 #define STMMAC_RX_THRESH	(DMA_RX_SIZE / 4)
 
-static int flow_ctrl = FLOW_OFF;
+static int flow_ctrl = FLOW_RX;
 module_param(flow_ctrl, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(flow_ctrl, "Flow control ability [on/off]");
 
@@ -735,7 +735,11 @@ static void stmmac_adjust_link(struct net_device *dev)
 			case 10:
 				if (priv->plat->has_gmac) {
 					ctrl |= priv->hw->link.port;
+#ifdef CONFIG_BAIKAL_ERRATA_GMAC
+					if (phydev->speed == SPEED_10) {
+#else
 					if (phydev->speed == SPEED_100) {
+#endif
 						ctrl |= priv->hw->link.speed;
 					} else {
 						ctrl &= ~(priv->hw->link.speed);
@@ -1314,13 +1318,13 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 {
 	unsigned int bytes_compl = 0, pkts_compl = 0;
 	unsigned int entry = priv->dirty_tx;
+	unsigned long flags;
 
-	spin_lock(&priv->tx_lock);
-
+	spin_lock_irqsave(&priv->tx_lock, flags);
 	priv->xstats.tx_clean++;
 
 	while (entry != priv->cur_tx) {
-		struct sk_buff *skb = priv->tx_skbuff[entry];
+		struct sk_buff *skb;
 		struct dma_desc *p;
 		int status;
 
@@ -1329,9 +1333,16 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 		else
 			p = priv->dma_tx + entry;
 
+		smp_rmb();
+
+		skb = priv->tx_skbuff[entry];
+
 		status = priv->hw->desc->tx_status(&priv->dev->stats,
 						      &priv->xstats, p,
 						      priv->ioaddr);
+#ifdef CONFIG_CPU_HAS_PREFETCH
+		prefetch((const void *)&priv->tx_skbuff_dma[entry]);
+#endif
 		/* Check if the descriptor is owned by the DMA */
 		if (unlikely(status & tx_dma_own))
 			break;
@@ -1383,21 +1394,16 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 
 	if (unlikely(netif_queue_stopped(priv->dev) &&
 		     stmmac_tx_avail(priv) > STMMAC_TX_THRESH)) {
-		netif_tx_lock(priv->dev);
-		if (netif_queue_stopped(priv->dev) &&
-		    stmmac_tx_avail(priv) > STMMAC_TX_THRESH) {
-			if (netif_msg_tx_done(priv))
-				pr_debug("%s: restart transmit\n", __func__);
-			netif_wake_queue(priv->dev);
-		}
-		netif_tx_unlock(priv->dev);
+		if (netif_msg_tx_done(priv))
+			pr_err("%s: restart transmit\n", __func__);
+		netif_wake_queue(priv->dev);
 	}
 
 	if ((priv->eee_enabled) && (!priv->tx_path_in_lpi_mode)) {
 		stmmac_enable_eee_mode(priv);
 		mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(eee_timer));
 	}
-	spin_unlock(&priv->tx_lock);
+	spin_unlock_irqrestore(&priv->tx_lock, flags);
 }
 
 static inline void stmmac_enable_dma_irq(struct stmmac_priv *priv)
@@ -1956,17 +1962,17 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int entry, first_entry;
 	struct dma_desc *desc, *first;
 	unsigned int enh_desc;
+	unsigned long flags;
 
-	spin_lock(&priv->tx_lock);
+	spin_lock_irqsave(&priv->tx_lock, flags);
 
 	if (unlikely(stmmac_tx_avail(priv) < nfrags + 1)) {
-		spin_unlock(&priv->tx_lock);
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
 			/* This is a hard error, log it. */
 			pr_err("%s: Tx Ring full when queue awake\n", __func__);
 		}
-		return NETDEV_TX_BUSY;
+		goto dma_map_err;
 	}
 
 	if (priv->tx_path_in_lpi_mode)
@@ -1983,6 +1989,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		desc = priv->dma_tx + entry;
 
 	first = desc;
+
+	smp_rmb();
 
 	priv->tx_skbuff[first_entry] = skb;
 
@@ -2064,7 +2072,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
 	} else {
 		priv->tx_count_frames = 0;
-		priv->hw->desc->set_tx_ic(desc);
+	//alm	priv->hw->desc->set_tx_ic(desc);
 		priv->xstats.tx_set_ic_bit++;
 	}
 
@@ -2093,7 +2101,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 			priv->hw->desc->enable_tx_timestamp(first);
 		}
-
+		smp_wmb();
 		/* Prepare the first descriptor setting the OWN bit too */
 		priv->hw->desc->prepare_tx_desc(first, 1, nopaged_len,
 						csum_insertion, priv->mode, 1,
@@ -2106,14 +2114,15 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		smp_wmb();
 	}
 
-	netdev_sent_queue(dev, skb->len);
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr);
+	netdev_sent_queue(dev, skb->len);
 
-	spin_unlock(&priv->tx_lock);
+	spin_unlock_irqrestore(&priv->tx_lock, flags);
+
 	return NETDEV_TX_OK;
 
 dma_map_err:
-	spin_unlock(&priv->tx_lock);
+	spin_unlock_irqrestore(&priv->tx_lock, flags);
 	dev_err(priv->device, "Tx dma map failed\n");
 	dev_kfree_skb(skb);
 	priv->dev->stats.tx_dropped++;
@@ -2253,10 +2262,12 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 		priv->cur_rx = STMMAC_GET_ENTRY(priv->cur_rx, DMA_RX_SIZE);
 		next_entry = priv->cur_rx;
 
+#ifdef CONFIG_CPU_HAS_PREFETCH
 		if (priv->extend_desc)
 			prefetch(priv->dma_erx + next_entry);
 		else
 			prefetch(priv->dma_rx + next_entry);
+#endif
 
 		if ((priv->extend_desc) && (priv->hw->desc->rx_extended_status))
 			priv->hw->desc->rx_extended_status(&priv->dev->stats,
@@ -2337,7 +2348,9 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 					priv->dev->stats.rx_dropped++;
 					break;
 				}
+#ifdef CONFIG_CPU_HAS_PREFETCH
 				prefetch(skb->data - NET_IP_ALIGN);
+#endif
 				priv->rx_skbuff[entry] = NULL;
 				priv->rx_zeroc_thresh++;
 
@@ -2398,8 +2411,13 @@ static int stmmac_poll(struct napi_struct *napi, int budget)
 	work_done = stmmac_rx(priv, budget);
 	if (work_done < budget) {
 		napi_complete(napi);
+#ifdef CONFIG_STMMAC_POLL_MODE
+		napi_reschedule(napi);
+#else
 		stmmac_enable_dma_irq(priv);
+#endif
 	}
+
 	return work_done;
 }
 
@@ -3014,16 +3032,10 @@ int stmmac_dvr_probe(struct device *device,
 		pr_info(" Enable RX Mitigation via HW Watchdog Timer\n");
 	}
 
-	netif_napi_add(ndev, &priv->napi, stmmac_poll, 64);
+	netif_napi_add(ndev, &priv->napi, stmmac_poll, 4);
 
 	spin_lock_init(&priv->lock);
 	spin_lock_init(&priv->tx_lock);
-
-	ret = register_netdev(ndev);
-	if (ret) {
-		pr_err("%s: ERROR %i registering the device\n", __func__, ret);
-		goto error_netdev_register;
-	}
 
 	/* If a specific clk_csr value is passed from the platform
 	 * this means that the CSR Clock Range selection cannot be
@@ -3049,11 +3061,21 @@ int stmmac_dvr_probe(struct device *device,
 		}
 	}
 
-	return 0;
+	ret = register_netdev(ndev);
+	if (ret) {
+		netdev_err(priv->dev, "%s: ERROR %i registering the device\n",
+			   __func__, ret);
+		goto error_netdev_register;
+	}
 
-error_mdio_register:
-	unregister_netdev(ndev);
+	return ret;
+
 error_netdev_register:
+	if (priv->pcs != STMMAC_PCS_RGMII &&
+	    priv->pcs != STMMAC_PCS_TBI &&
+	    priv->pcs != STMMAC_PCS_RTBI)
+		stmmac_mdio_unregister(ndev);
+error_mdio_register:
 	netif_napi_del(&priv->napi);
 error_hw_init:
 	clk_disable_unprepare(priv->pclk);

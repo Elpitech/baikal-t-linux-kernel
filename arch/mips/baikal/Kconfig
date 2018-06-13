@@ -55,6 +55,13 @@ config BAIKAL_ERRATA_XGMAC
 
       If unsure, say Y.
 
+config BAIKAL_ERRATA_GMAC
+    bool "Fix for GMAC block speed 10/100M"
+    help
+      Fix for GMAC block speed 10/100M in early Baikal-T SoCs
+
+      If unsure, say N.
+
 endif # BAIKAL_ERRATA
 endif # ARCH_BAIKAL
 endif # MACH_BAIKAL

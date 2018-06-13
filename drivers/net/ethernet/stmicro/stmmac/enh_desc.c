@@ -334,15 +334,16 @@ static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 		tdes0 |= ETDES0_LAST_SEGMENT;
 
 	/* Finally set the OWN bit. Later the DMA will start! */
-	if (tx_own)
+	if (tx_own) {
 		tdes0 |= ETDES0_OWN;
 
-	if (is_fs & tx_own)
+		if (is_fs)
 		/* When the own bit, for the first frame, has to be set, all
 		 * descriptors for the same frame has to be set before, to
 		 * avoid race condition.
 		 */
-		wmb();
+			wmb();
+	}
 
 	p->des0 = tdes0;
 }
