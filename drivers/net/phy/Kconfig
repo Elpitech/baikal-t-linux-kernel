@@ -43,6 +43,12 @@ config MDIO_BITBANG
 
 	  If in doubt, say N.
 
+config BAIKAL_MDIO
+	tristate "Driver for the Baikal Electronics GPIO MDIO bus"
+	depends on OF && GPIOLIB && MDIO_BITBANG
+	---help---
+	  Support for Baikal Electronics GPIO MDIO bus
+
 config MDIO_BUS_MUX
 	tristate
 	depends on OF_MDIO
