@@ -194,6 +194,7 @@ static void dw_writer(struct dw_spi *dws)
 		dw_write_io_reg(dws, DW_SPI_DR, txw);
 		dws->tx += dws->n_bytes;
 	}
+	dw_writel(dws, DW_SPI_SER, 1);
 }
 
 static void dw_reader(struct dw_spi *dws)
@@ -466,7 +467,7 @@ static void spi_hw_init(struct device *dev, struct dw_spi *dws)
 		}
 		dw_writel(dws, DW_SPI_TXFLTR, 0);
 
-		dws->fifo_len = (fifo == 1) ? 0 : fifo;
+		dws->fifo_len = (fifo == 1) ? 0 : fifo/(dws->reg_io_width);
 		dev_dbg(dev, "Detected FIFO size: %u bytes\n", dws->fifo_len);
 	}
 }
