@@ -48,6 +48,12 @@
 
 #include "common.h"
 
+#ifdef CONFIG_KEXEC
+#include <asm/kexec.h>
+extern int baikal_kexec_prepare(struct kimage *);
+extern void baikal_kexec_shutdown(void);
+#endif
+
 #ifndef CONFIG_MIPS_CPC
 void __iomem *mips_cpc_base;
 #endif
@@ -144,6 +150,11 @@ void __init prom_init(void)
 	reg = read_gcr_l2_pft_control_b();
 	write_gcr_l2_pft_control_b(reg | CM_GCR_L2_PFT_CONTROL_PFTEN_MSK);
 	wmb();
+
+#ifdef CONFIG_KEXEC
+	_machine_kexec_shutdown = baikal_kexec_shutdown;
+	_machine_kexec_prepare = baikal_kexec_prepare;
+#endif
 
 #ifdef CONFIG_SMP
 #ifdef CONFIG_MIPS_CPS
