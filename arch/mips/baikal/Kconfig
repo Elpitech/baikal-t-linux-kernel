@@ -434,6 +434,13 @@ config BAIKAL_ERRATA_GMAC
 
       If unsure, say N.
 
+config BAIKAL_ERRATA_GBE_PHY_MICREL
+    bool "Fix for Micrel PHY RX delay on BFK board"
+    help
+      Fix for Micrel PHY RX delay on early revisions of BFK board (v1.0)
+
+      If unsure, say N.
+
 endif # BAIKAL_ERRATA
 endif # ARCH_BAIKAL
 endif # MACH_BAIKAL
