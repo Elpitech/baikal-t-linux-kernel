@@ -24,6 +24,7 @@ obj-y				:= baikal-init.o baikal-int.o baikal-memory.o \
 				   baikal-setup.o baikal-time.o \
 				   baikal-apb.o baikal-axi.o baikal-emc.o
 
+obj-$(CONFIG_EARLY_PRINTK)	+= baikal-console.o
 obj-$(CONFIG_OF)		+= baikal-of.o
 obj-$(CONFIG_CPU_FREQ)		+= baikal-cpufreq.o
 obj-$(CONFIG_KEXEC)		+= baikal-kexec.o
