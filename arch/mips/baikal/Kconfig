@@ -58,3 +58,5 @@ config SYS_HAS_CPU_MIPS32_R5
 config WDT_MIPS_GIC
     bool
     default n
+
+source "drivers/dma/baikal/Kconfig"
