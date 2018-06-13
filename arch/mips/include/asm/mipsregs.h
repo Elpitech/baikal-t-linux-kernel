@@ -70,6 +70,7 @@
 #define CP0_EPC $14
 #define CP0_PRID $15
 #define CP0_EBASE $15, 1
+#define CP0_CDMMBASE $15, 2
 #define CP0_CMGCRBASE $15, 3
 #define CP0_CONFIG $16
 #define CP0_CONFIG3 $16, 3
@@ -547,6 +548,15 @@
 #define MIPS_CONF_AT		(_ULCAST_(3) << 13)
 #define MIPS_CONF_M		(_ULCAST_(1) << 31)
 
+/* Bits specific to the MIPS32R5. */
+#define MIPS32R5_CONF_K23	(_ULCAST_(7) << 28)
+#define MIPS32R5_CONF_KU	(_ULCAST_(7) << 25)
+#define MIPS32R5_CONF_ISP	(_ULCAST_(1) << 24)
+#define MIPS32R5_CONF_DSP	(_ULCAST_(1) << 23)
+#define MIPS32R5_CONF_UDI	(_ULCAST_(1) << 22)
+#define MIPS32R5_CONF_SB	(_ULCAST_(1) << 21)
+#define MIPS32R5_CONF_MM	(_ULCAST_(1) << 18)
+
 /*
  * Bits in the MIPS32/64 PRA coprocessor 0 config registers 1 and above.
  */
@@ -652,6 +662,10 @@
 #define MIPS_CONF5_CV		(_ULCAST_(1) << 29)
 #define MIPS_CONF5_K		(_ULCAST_(1) << 30)
 
+/* Jump register cache prediction disable */
+#define MIPS_CONF6_JRCD		(_ULCAST_(1) << 0)
+/* MIPSr6 enable */
+#define MIPS_CONF6_R6		(_ULCAST_(1) << 2)
 #define MIPS_CONF6_SYND		(_ULCAST_(1) << 13)
 /* proAptiv FTLB on/off bit */
 #define MIPS_CONF6_FTLBEN	(_ULCAST_(1) << 15)
@@ -659,12 +673,15 @@
 #define MIPS_CONF6_FTLBDIS	(_ULCAST_(1) << 22)
 /* FTLB probability bits */
 #define MIPS_CONF6_FTLBP_SHIFT	(16)
+/* Disable load/store bonding */
+#define MIPS_CONF6_DLSB		(_ULCAST_(1) << 21)
 
 #define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
 
 #define MIPS_CONF7_RPS		(_ULCAST_(1) << 2)
 
 #define MIPS_CONF7_IAR		(_ULCAST_(1) << 10)
+/* Alias removed */
 #define MIPS_CONF7_AR		(_ULCAST_(1) << 16)
 
 /* WatchLo* register definitions */
