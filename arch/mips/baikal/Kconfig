@@ -54,3 +54,7 @@ endif # MACH_BAIKAL
 config SYS_HAS_CPU_MIPS32_R5
     bool
     default n
+
+config WDT_MIPS_GIC
+    bool
+    default n

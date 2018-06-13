@@ -2339,6 +2339,9 @@ config MIPS_GIC_IPI
 	depends on MIPS_GIC
 	bool
 
+config MIPS_GIC_IPI_LOW
+	bool
+
 config MIPS_CM
 	bool
 
