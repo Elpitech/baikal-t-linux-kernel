@@ -34,6 +34,14 @@ int dwmac_dma_reset(void __iomem *ioaddr)
 	/* DMA SW reset */
 	value |= DMA_BUS_MODE_SFT_RESET;
 	writel(value, ioaddr + DMA_BUS_MODE);
+
+#ifdef CONFIG_MACH_BAIKAL_BFK3
+	/* Clear PHY reset */
+	value = readl(ioaddr + GMAC_GPIO);
+	value |= GMAC_GPIO_GPO0;
+	writel(value, ioaddr + GMAC_GPIO);
+#endif /* CONFIG_MACH_BAIKAL_BFK3 */
+	
 	limit = 10;
 	while (limit--) {
 		if (!(readl(ioaddr + DMA_BUS_MODE) & DMA_BUS_MODE_SFT_RESET))

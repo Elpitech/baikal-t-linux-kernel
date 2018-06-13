@@ -754,7 +754,11 @@ static void stmmac_adjust_link(struct net_device *dev)
 				if (likely((priv->plat->has_gmac) ||
 					   (priv->plat->has_gmac4))) {
 					ctrl |= priv->hw->link.port;
+#ifdef CONFIG_BAIKAL_ERRATA_GMAC
+					if (phydev->speed == SPEED_10) {
+#else
 					if (phydev->speed == SPEED_100) {
+#endif
 						ctrl |= priv->hw->link.speed;
 					} else {
 						ctrl &= ~(priv->hw->link.speed);
@@ -3203,7 +3207,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* Get the HW capability (new GMAC newer than 3.50a) */
 	priv->hw_cap_support = stmmac_get_hw_features(priv);
 	if (priv->hw_cap_support) {
-		pr_info(" DMA HW capability register supported");
+		pr_info(" DMA HW capability register supported\n");
 
 		/* We can override some gmac/dma configuration fields: e.g.
 		 * enh_desc, tx_coe (e.g. that are passed through the
