@@ -20,4 +20,5 @@
 
 cflags-y += -I$(srctree)/arch/mips/include/asm/mach-baikal
 
-obj-y				:= baikal-init.o baikal-memory.o baikal-setup.o
+obj-y				:= baikal-init.o baikal-int.o baikal-memory.o \
+				   baikal-setup.o

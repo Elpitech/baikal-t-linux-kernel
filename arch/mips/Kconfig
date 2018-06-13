@@ -211,7 +211,6 @@ config MIPS_BAIKAL
 	select MIPS_CPU_SCACHE
 	select MIPS_MACHINE
 	select MIPS_GIC
-	select MIPS_GIC_IPI_LOW
 	select IRQ_DOMAIN
 	select SWAP_IO_SPACE
 	select HAVE_MACH_CLKDEV

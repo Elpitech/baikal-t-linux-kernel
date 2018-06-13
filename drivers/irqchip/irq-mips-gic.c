@@ -246,6 +246,122 @@ void gic_stop_count(void)
 }
 
 #endif
+#ifdef CONFIG_WDT_MIPS_GIC
+unsigned int gic_read_wd_ctrl(void)
+{
+	return 	gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_CONFIG0));
+}
+
+void gic_write_wd_ctrl(unsigned int ctrl)
+{
+	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_CONFIG0), ctrl);
+}
+
+void gic_write_cpu_wd_ctrl(unsigned int ctrl, int cpu)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), cpu);
+	gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_WD_CONFIG0), ctrl);
+
+	local_irq_restore(flags);
+}
+void gic_start_wd(void)
+{
+	u32 gicconfig;
+
+	/* Start watchdog */
+	gicconfig = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_CONFIG0));
+	gicconfig |= GIC_WD_CTRL_START_MSK;
+	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_CONFIG0), gicconfig);
+}
+
+void gic_start_cpu_wd(int cpu)
+{
+	u32 gicconfig;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), cpu);
+
+	/* Start watchdog */
+	gicconfig = gic_read32(GIC_REG(VPE_OTHER, GIC_VPE_WD_CONFIG0));
+	gicconfig |= GIC_WD_CTRL_START_MSK;
+	gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_WD_CONFIG0), gicconfig);
+
+	local_irq_restore(flags);
+}
+
+void gic_stop_wd(void)
+{
+	u32 gicconfig;
+
+	/* Stop watchdog */
+	gicconfig = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_CONFIG0));
+	gicconfig &= ~GIC_WD_CTRL_START_MSK;
+	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_CONFIG0), gicconfig);
+}
+
+void gic_stop_cpu_wd(int cpu)
+{
+	u32 gicconfig;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), cpu);
+
+	/* Start watchdog */
+	gicconfig = gic_read32(GIC_REG(VPE_OTHER, GIC_VPE_WD_CONFIG0));
+	gicconfig &= ~GIC_WD_CTRL_START_MSK;
+	gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_WD_CONFIG0), gicconfig);
+
+	local_irq_restore(flags);
+}
+
+unsigned int gic_read_wd_count(void)
+{
+	return gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_COUNT0));
+}
+
+unsigned int gic_read_wd_initial(void)
+{
+	return gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_INITIAL0));
+}
+
+void gic_write_wd_initial(unsigned int cnt)
+{
+	unsigned int ctrl;
+
+	ctrl = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_CONFIG0));
+	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_CONFIG0),
+			ctrl & ~GIC_WD_CTRL_START_MSK);
+
+	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_INITIAL0), cnt);
+	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_WD_CONFIG0), ctrl);
+}
+
+void gic_write_cpu_wd_initial(unsigned int cnt, int cpu)
+{
+	unsigned long flags;
+	unsigned int ctrl; 
+
+	local_irq_save(flags);
+
+	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), cpu);
+
+	ctrl = gic_read32(GIC_REG(VPE_OTHER, GIC_VPE_WD_CONFIG0));
+	gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_WD_CONFIG0),
+			ctrl & ~GIC_WD_CTRL_START_MSK);
+	gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_WD_INITIAL0), cnt);
+	gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_WD_CONFIG0), ctrl);
+
+	local_irq_restore(flags);
+}
+#endif
 
 unsigned gic_read_local_vp_id(void)
 {
@@ -294,6 +410,12 @@ static void gic_send_ipi(struct irq_data *d, unsigned int cpu)
 	irq_hw_number_t hwirq = GIC_HWIRQ_TO_SHARED(irqd_to_hwirq(d));
 
 	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_SET(hwirq));
+}
+
+int gic_get_c0_wd_int(void)
+{
+	return irq_create_mapping(gic_irq_domain,
+				  GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_WD));
 }
 
 int gic_get_c0_compare_int(void)
