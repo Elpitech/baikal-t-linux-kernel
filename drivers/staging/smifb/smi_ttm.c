@@ -308,7 +308,7 @@ int smi_mm_init(struct smi_device *smi)
 
 void smi_mm_fini(struct smi_device *smi)
 {
-	struct drm_device *dev = smi->dev;
+	struct drm_device *dev __maybe_unused = smi->dev;
 	
 	if (!smi->mm_inited)
 		return;

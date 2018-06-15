@@ -25,7 +25,7 @@ int smi_handle_damage(struct smi_framebuffer *fb, int x, int y,
 {
 	struct smi_bo *bo = NULL, *src_bo = NULL;
 	void *src = NULL, *dst = NULL;
-	int ret = 0, i;
+	int ret = 0;
 	unsigned long offset = 0;
 
 	
@@ -133,7 +133,6 @@ unlock:
 }
 
 #endif
-
 
 static int smi_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 						  struct drm_file *file_priv,
@@ -330,7 +329,7 @@ void drm_kms_helper_poll_init(struct drm_device *dev);
 int smi_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct smi_device *cdev;
-	int r;
+	int r, ret;
 
 	cdev = kzalloc(sizeof(struct smi_device), GFP_KERNEL);
 	if (cdev == NULL)
@@ -376,8 +375,6 @@ int smi_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	drm_vblank_init(dev, dev->mode_config.num_crtc);
-
-	int ret;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)	
 		ret = drm_irq_install(dev, dev->pdev->irq);

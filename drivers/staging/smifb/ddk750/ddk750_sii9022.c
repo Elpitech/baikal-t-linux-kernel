@@ -23,7 +23,7 @@ unsigned char sii9022xIsConnected(void)
 }
 
 
-static void dump9022a(uint8_t reg){
+static void __always_unused dump9022a(uint8_t reg){
 #if 1
 	printk("reg%x=%x\n",reg,i2cReadReg(SII9022A_I2C_ADDRESS,reg));
 #endif
