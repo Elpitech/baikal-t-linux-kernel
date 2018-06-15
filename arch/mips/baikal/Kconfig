@@ -147,6 +147,9 @@ config MACH_BAIKAL_BFK3
     # Memory mapping granularity
     select PAGE_SIZE_16KB
 
+    # Non-empty eFUSE
+    select EFUSE
+
     # DTB select
     select DTB_BAIKAL_BFK3
 
@@ -309,6 +312,10 @@ config SYS_HAS_CPU_MIPS32_R5
     default n
 
 config WDT_MIPS_GIC
+    bool
+    default n
+
+config EFUSE
     bool
     default n
 
