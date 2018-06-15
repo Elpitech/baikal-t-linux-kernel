@@ -155,7 +155,7 @@ static const struct drm_framebuffer_funcs smi_fb_funcs = {
 
 int smi_framebuffer_init(struct drm_device *dev,
 			    struct smi_framebuffer *gfb,
-			    const struct drm_mode_fb_cmd2 *mode_cmd,
+			    struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct drm_gem_object *obj)
 {
 	int ret;
@@ -177,7 +177,7 @@ int smi_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 smi_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_file *filp,
-			       const struct drm_mode_fb_cmd2 *mode_cmd)
+			       struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct smi_framebuffer *smi_fb;
@@ -330,7 +330,7 @@ void drm_kms_helper_poll_init(struct drm_device *dev);
 int smi_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct smi_device *cdev;
-	int r;
+	int r, ret;
 
 	cdev = kzalloc(sizeof(struct smi_device), GFP_KERNEL);
 	if (cdev == NULL)
@@ -376,8 +376,6 @@ int smi_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	drm_vblank_init(dev, dev->mode_config.num_crtc);
-
-	int ret;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)	
 		ret = drm_irq_install(dev, dev->pdev->irq);
