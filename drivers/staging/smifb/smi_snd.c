@@ -147,7 +147,6 @@ static int snd_falconi2s_put_hw_play_volume(struct snd_kcontrol *kcontrol,
 
 	struct sm768chip *chip = kcontrol->private_data;
 	int changed = 0;
-	unsigned short Reg_Vol;
 	u8 vol;
 
 
@@ -181,7 +180,6 @@ static int snd_falconi2s_put_hw_capture_volume(struct snd_kcontrol *kcontrol,
 
 	struct sm768chip *chip = kcontrol->private_data;
 	int changed = 0;
-	unsigned short Reg_Vol;
 	u8 vol;
 
 
@@ -329,9 +327,8 @@ static int snd_falconi2s_pcm_hw_free(struct snd_pcm_substream *substream)
   /* prepare callback */
 static int snd_falconi2s_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_pcm_runtime __maybe_unused *runtime = substream->runtime;
 	struct sm768chip *chip = snd_pcm_substream_chip(substream);
-	int i=0;
 	dbg_msg("snd_falconi2s_pcm_prepare\n");
 
 	chip->pos = 0;
@@ -430,7 +427,7 @@ static struct snd_pcm_ops snd_falconi2s_playback_ops = {
   };
 
   /* operators */
-static struct snd_pcm_ops snd_falconi2s_capture_ops = {
+static struct snd_pcm_ops __maybe_unused snd_falconi2s_capture_ops = {
           .open =        snd_falconi2s_capture_open,
           .close =       snd_falconi2s_capture_close,
           .ioctl =       snd_pcm_lib_ioctl,
@@ -490,7 +487,7 @@ static irqreturn_t snd_smi_interrupt(int irq, void *dev_id)
 		
 		/* put data of next section */  
 		/* only support SRAM_SECTION_NUM = 2 */
-		memcpy_fromio(chip->pvReg + SRAM_OUTPUT_BASE + SRAM_SECTION_SIZE * sramTxSection, runtime->dma_area + chip->pos, P_PERIOD_BYTE);
+		memcpy_fromio((void *)(chip->pvReg + SRAM_OUTPUT_BASE + SRAM_SECTION_SIZE * sramTxSection), runtime->dma_area + chip->pos, P_PERIOD_BYTE);
 #ifdef SAVE_AUDIO_DATA
 		if(file_pos < FILE_SIZE) {
 			dbg_msg("copy date\n");
@@ -620,7 +617,6 @@ int smi_audio_init(struct pci_dev *pci)
 
 	struct sm768chip *chip;
 	int idx,err;
-	int ret;
 	
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,18,0)
 	err = snd_card_new(&pci->dev,SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1, THIS_MODULE, 0, &card); 
