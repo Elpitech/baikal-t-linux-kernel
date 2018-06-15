@@ -290,6 +290,7 @@ static int baikal_kexec_core_down(void)
 	if (!mips_cpc_present()) {
 		pr_err("baikal-kexec - baikal_kexec_core_down: !mips_cpc_present\n");
 		mips_cm_unlock_other();
+		local_irq_enable();
 		return -1;
 	}
 
@@ -326,6 +327,7 @@ static int baikal_kexec_core_down(void)
 
 	mips_cm_unlock_other();
 
+	local_irq_enable();
 	return ret;
 }
 
