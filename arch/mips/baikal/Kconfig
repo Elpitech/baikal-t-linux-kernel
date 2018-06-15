@@ -308,14 +308,6 @@ menuconfig BAIKAL_ERRATA
 
 if BAIKAL_ERRATA
 
-config BAIKAL_ERRATA_XGMAC
-    bool "Fix for MMD Devices in package registers swap in XGMAC"
-    help
-      Fix for MMD Devices in package registers swap in XGMAC in
-      early Baikal-T SoCs
-
-      If unsure, say Y.
-
 config BAIKAL_ERRATA_GMAC
     bool "Fix for GMAC block speed 10/100M"
     help
