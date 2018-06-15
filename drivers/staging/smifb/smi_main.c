@@ -18,7 +18,7 @@
 
 #define MB(x) (x<<20) /* Macro for Mega Bytes */
 
-#ifdef PRIME
+#ifdef CONFIG_DRM_SMIFB_PRIME
 
 int smi_handle_damage(struct smi_framebuffer *fb, int x, int y,
 						int width, int height)
@@ -86,7 +86,7 @@ static void smi_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	kfree(fb);
 }
 
-#ifdef PRIME
+#ifdef CONFIG_DRM_SMIFB_PRIME
 
 static int smi_user_framebuffer_dirty(struct drm_framebuffer *fb,
                                         struct drm_file *file,
@@ -148,7 +148,7 @@ static int smi_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 static const struct drm_framebuffer_funcs smi_fb_funcs = {
 	.create_handle = smi_user_framebuffer_create_handle,
 	.destroy = smi_user_framebuffer_destroy,
-#ifdef PRIME
+#ifdef CONFIG_DRM_SMIFB_PRIME
 	.dirty = smi_user_framebuffer_dirty,
 #endif
 };
@@ -349,7 +349,7 @@ int smi_driver_load(struct drm_device *dev, unsigned long flags)
 		ddk750_initChip();
 		ddk750_deInit();
 		
-#ifdef USE_HDMICHIP
+#ifdef CONFIG_DRM_SMIFB_SII9022_HDMI
 		if((r = sii9022xInitChip()) < 0)
 		{	
 			printk("Init HDMI-Tx chip failed!");
@@ -363,7 +363,7 @@ int smi_driver_load(struct drm_device *dev, unsigned long flags)
 		ddk768_initChip();
 		ddk768_deInit();
 		hw768_init_hdmi();
-#ifdef AUDIO_EN
+#ifdef CONFIG_DRM_SMIFB_I2S_UDA1345_AUDIO
 		smi_audio_init(dev->pdev);	
 #endif
 	}
@@ -440,7 +440,7 @@ int smi_driver_unload(struct drm_device *dev)
 	smi_mm_fini(cdev);
 	smi_device_fini(cdev);
 
-#ifdef AUDIO_EN
+#ifdef CONFIG_DRM_SMIFB_I2S_UDA1345_AUDIO
 	if(g_specId == SPC_SM768)
 		smi_audio_remove(dev->pdev);
 #endif

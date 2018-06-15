@@ -258,7 +258,7 @@ static int smi_crtc_mode_set(struct drm_crtc *crtc,
 		swPanelPowerSequence(DISP_ON, 4);                   /* Turn on Panel */
 	    setDAC(DISP_ON);                                    /* Turn on DAC */
 
-#ifdef USE_HDMICHIP
+#ifdef CONFIG_DRM_SMIFB_SII9022_HDMI
 		printk("HDMI set mode\n");
 		sii9022xSetMode(5);
 #endif
@@ -667,7 +667,7 @@ int smi_connector_get_modes(struct drm_connector *connector)
 	{
 		if(connector->connector_type == DRM_MODE_CONNECTOR_DVII)
 		{
-#ifdef USE_HDMICHIP
+#ifdef CONFIG_DRM_SMIFB_SII9022_HDMI
 			count = drm_add_modes_noedid(connector, 1920, 1080);
 			drm_set_preferred_mode(connector, 1024, 768);
 #else
@@ -801,7 +801,7 @@ static enum drm_connector_status smi_connector_detect(struct drm_connector
 		if(connector->connector_type == DRM_MODE_CONNECTOR_DVII)
 		{
 
-#ifdef USE_HDMICHIP
+#ifdef CONFIG_DRM_SMIFB_SII9022_HDMI
 			if(sii9022xIsConnected())
 				return connector_status_connected;
 #endif
@@ -898,7 +898,7 @@ static enum drm_connector_status smi_connector_detect(struct drm_connector
 				g_m_connector = g_m_connector&(~USE_HDMI);
 				return connector_status_disconnected;  //If VGA and DVI are both connected, disable HDMI
 			}
-#if 0//ndef AUDIO_EN
+#if 0//ndef CONFIG_DRM_SMIFB_I2S_UDA1345_AUDIO
 			if (hdmi_hotplug_detect()){
 #else
 			if(ddk768_edidHeaderReadMonitorEx(8,9)==0){ 
@@ -992,7 +992,7 @@ int smi_modeset_init(struct smi_device *cdev)
 		smi_bpp = 32;
 
 	//in multi-card with Intel, we can only use 32bpp
-#ifdef PRIME
+#ifdef CONFIG_DRM_SMIFB_PRIME
 	smi_bpp = 32;
 #endif
 
