@@ -19,7 +19,7 @@
 #include "ddk750/ddk750_cursor.h"
 //#include "smi_drv.h"
 //#include "hw750.h"
-#ifdef USE_HDMICHIP
+#ifdef CONFIG_DRM_SMIFB_SII9022_HDMI
 #include "ddk750/ddk750_sii9022.h"
 #endif
 

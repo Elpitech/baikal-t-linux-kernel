@@ -1,5 +1,3 @@
-#ifdef USE_HDMICHIP
-
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/errno.h>
@@ -62,6 +60,3 @@ int sii9022xInitChip(void)
 	}
 	return 0;
 }
-
-
-#endif
