@@ -1,4 +1,4 @@
-#ifdef USE_HDMICHIP
+#ifdef CONFIG_DRM_SMIFB_SII9022_HDMI
 
 #include <linux/kernel.h>
 #include <linux/i2c.h>

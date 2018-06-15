@@ -384,7 +384,7 @@ static const struct file_operations smi_driver_fops = {
 	.llseek = no_llseek,
 };
 static struct drm_driver driver = {
-#ifdef PRIME
+#ifdef CONFIG_DRM_SMIFB_PRIME
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |DRIVER_GEM |DRIVER_PRIME
 				| DRIVER_MODESET ,
 #else
@@ -423,7 +423,7 @@ static struct drm_driver driver = {
 	.irq_postinstall = smi_irq_postinstall,
 	.irq_uninstall = smi_irq_uninstall,
 	.irq_handler		= smi_drm_interrupt,
-#ifdef PRIME
+#ifdef CONFIG_DRM_SMIFB_PRIME
 #if LINUX_VERSION_CODE > KERNEL_VERSION(3,14,0)	
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
