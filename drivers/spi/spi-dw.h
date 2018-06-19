@@ -3,6 +3,7 @@
 
 #include <linux/io.h>
 #include <linux/scatterlist.h>
+#include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <asm/mach-baikal/bc.h>
 
@@ -124,6 +125,9 @@ struct dw_spi {
 	u32			dma_width;
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 	u32			current_freq;	/* frequency in hz */
+
+	 /* Poll-transfer tasklet */
+	struct tasklet_struct	poll_transfer;
 
 	/* DMA info */
 	int			dma_inited;
