@@ -401,6 +401,7 @@ static void dw_spi_handle_err(struct spi_master *master,
 /* This may be called twice for each spi dev */
 static int dw_spi_setup(struct spi_device *spi)
 {
+	struct dw_spi *dws = spi_master_get_devdata(spi->master);
 	struct dw_spi_chip *chip_info = NULL;
 	struct chip_data *chip;
 	int ret;
@@ -428,6 +429,9 @@ static int dw_spi_setup(struct spi_device *spi)
 		chip->poll_mode = chip_info->poll_mode;
 		chip->type = chip_info->type;
 	}
+
+	if (dws->irq < 0)
+		chip->poll_mode = true;
 
 	chip->tmode = SPI_TMOD_TR;
 
@@ -490,10 +494,13 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	dws->dma_addr = (dma_addr_t)(dws->paddr + DW_SPI_DR);
 	snprintf(dws->name, sizeof(dws->name), "dw_spi%d", dws->bus_num);
 
-	ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED, dws->name, master);
-	if (ret < 0) {
-		dev_err(dev, "can not get IRQ\n");
-		goto err_free_master;
+	if (dws->irq >= 0) {
+		ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED, dws->name,
+				  master);
+		if (ret < 0) {
+			dev_err(dev, "can not get IRQ\n");
+			goto err_free_master;
+		}
 	}
 
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP;
@@ -535,7 +542,8 @@ err_dma_exit:
 	if (dws->dma_ops && dws->dma_ops->dma_exit)
 		dws->dma_ops->dma_exit(dws);
 	spi_enable_chip(dws, 0);
-	free_irq(dws->irq, master);
+	if (dws->irq >= 0)
+		free_irq(dws->irq, master);
 err_free_master:
 	spi_master_put(master);
 	return ret;
@@ -551,7 +559,8 @@ void dw_spi_remove_host(struct dw_spi *dws)
 
 	spi_shutdown_chip(dws);
 
-	free_irq(dws->irq, dws->master);
+	if (dws->irq >= 0)
+		free_irq(dws->irq, dws->master);
 }
 EXPORT_SYMBOL_GPL(dw_spi_remove_host);
 
