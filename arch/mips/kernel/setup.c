@@ -867,6 +867,8 @@ static void __init arch_mem_init(char **cmdline_p)
 	memblock_allow_resize();
 
 	memblock_dump_all();
+
+	early_memtest(PFN_PHYS(min_low_pfn), PFN_PHYS(max_low_pfn));
 }
 
 static void __init resource_init(void)
