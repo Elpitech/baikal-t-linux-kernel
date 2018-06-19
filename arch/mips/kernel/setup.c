@@ -863,6 +863,10 @@ static void __init arch_mem_init(char **cmdline_p)
 	plat_swiotlb_setup();
 
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
+
+	memblock_allow_resize();
+
+	memblock_dump_all();
 }
 
 static void __init resource_init(void)
