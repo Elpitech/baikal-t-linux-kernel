@@ -370,6 +370,10 @@ static unsigned long __init init_initrd(void)
 static void __init bootmem_init(void)
 {
 	init_initrd();
+}
+
+static void __init reservation_init(void)
+{
 	finalize_initrd();
 }
 
@@ -497,60 +501,70 @@ static void __init bootmem_init(void)
 		memblock_add_node(PFN_PHYS(start), PFN_PHYS(end - start), 0);
 	}
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
+}
+
+static void __init reservation_init(void)
+{
+	phys_addr_t size;
+	int i;
 
 	/*
-	 * Register fully available low RAM pages with the bootmem allocator.
+	 * Reserve memory occupied by the kernel and it data
+	 */
+	size = __pa_symbol(&_end) - __pa_symbol(&_text);
+	memblock_reserve(__pa_symbol(&_text), size);
+
+	/*
+	 * Handle FDT and it reserved-memory nodes now
+	 */
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
+
+	/*
+	 * Reserve requested memory ranges with the memblock allocator.
 	 */
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		unsigned long start, end, size;
+		phys_addr_t start, end;
 
-		start = PFN_UP(boot_mem_map.map[i].addr);
-		end   = PFN_DOWN(boot_mem_map.map[i].addr
-				    + boot_mem_map.map[i].size);
+		if (boot_mem_map.map[i].type == BOOT_MEM_RAM)
+			continue;
+
+		start = boot_mem_map.map[i].addr;
+		end   = boot_mem_map.map[i].addr + boot_mem_map.map[i].size;
+		size  = boot_mem_map.map[i].size;
 
 		/*
-		 * Reserve usable memory.
+		 * Make sure the region isn't already reserved
 		 */
-		switch (boot_mem_map.map[i].type) {
-		case BOOT_MEM_RAM:
-			break;
-		case BOOT_MEM_INIT_RAM:
-			memory_present(0, start, end);
-			continue;
-		default:
-			/* Not usable memory */
-			if (start > min_low_pfn && end < max_low_pfn)
-				reserve_bootmem(boot_mem_map.map[i].addr,
-						boot_mem_map.map[i].size,
-						BOOTMEM_DEFAULT);
+		if (memblock_is_region_reserved(start, size)) {
+			pr_warn("Reserved region %08zx @ %pa already in-use\n",
+				(size_t)size, &start);
 			continue;
 		}
 
-		/*
-		 * We are rounding up the start address of usable memory
-		 * and at the end of the usable range downwards.
-		 */
-		if (start >= max_low_pfn)
-			continue;
-		if (end > max_low_pfn)
-			end = max_low_pfn;
-
-		/*
-		 * ... finally, is the area going away?
-		 */
-		if (end <= start)
-			continue;
-		size = end - start;
-
-		/* Register lowmem ranges */
-		free_bootmem(PFN_PHYS(start), size << PAGE_SHIFT);
-		memory_present(0, start, end);
+		switch (boot_mem_map.map[i].type) {
+		case BOOT_MEM_ROM_DATA:
+		case BOOT_MEM_RESERVED:
+		case BOOT_MEM_INIT_RAM:
+			memblock_reserve(start, size);
+			break;
+		case BOOT_MEM_RESERVED_NOMAP:
+		default:
+			memblock_remove(start, size);
+			break;
+		}
 	}
 
 	/*
 	 * Reserve initrd memory if needed.
 	 */
 	finalize_initrd();
+
+	/*
+	 * Reserve for hibernation
+	 */
+	size = __pa_symbol(&__nosave_end) - __pa_symbol(&__nosave_begin);
+	memblock_reserve(__pa_symbol(&__nosave_begin), size);
 }
 
 #endif	/* CONFIG_SGI_IP27 */
@@ -565,6 +579,7 @@ static void __init bootmem_init(void)
  * kernel but generic memory management system is still entirely uninitialized.
  *
  *  o bootmem_init()
+ *  o reservation_init()
  *  o sparse_init()
  *  o paging_init()
  *  o dma_contiguous_reserve()
@@ -820,10 +835,10 @@ static void __init arch_mem_init(char **cmdline_p)
 		print_memory_map();
 	}
 
-	early_init_fdt_reserve_self();
-	early_init_fdt_scan_reserved_mem();
-
 	bootmem_init();
+
+	reservation_init();
+
 #ifdef CONFIG_PROC_VMCORE
 	if (setup_elfcorehdr && setup_elfcorehdr_size) {
 		printk(KERN_INFO "kdump reserved memory at %lx-%lx\n",
@@ -849,9 +864,6 @@ static void __init arch_mem_init(char **cmdline_p)
 	for_each_memblock(reserved, reg)
 		if (reg->size != 0)
 			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
-
-	reserve_bootmem_region(__pa_symbol(&__nosave_begin),
-			__pa_symbol(&__nosave_end)); /* Reserve for hibernation */
 }
 
 static void __init resource_init(void)
