@@ -108,6 +108,12 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
+	/* Dump DW component type */
+	ret = readl(dws->regs + DW_SPI_VERSION);
+	dev_info(&pdev->dev, "DW SPI ID: 0x%08X, Version: %c.%c%c%c\n",
+		readl(dws->regs + DW_SPI_IDR), (ret >> 24) & 0xff,
+		(ret >> 16) & 0xff, (ret >> 8) & 0xff, ret & 0xff);
+
 	platform_set_drvdata(pdev, dwsmmio);
 	return 0;
 
