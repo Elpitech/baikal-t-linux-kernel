@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -38,11 +39,26 @@ static int m25p80_read_reg(struct spi_nor *nor, u8 code, u8 *val, int len)
 {
 	struct m25p *flash = nor->priv;
 	struct spi_device *spi = flash->spi;
+	struct spi_transfer t = {0};
+	u8 *buf;
 	int ret;
 
-	ret = spi_write_then_read(spi, &code, 1, val, len);
+	buf = kzalloc(len + 1, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf[0] = code;
+	t.tx_buf = buf;
+	t.rx_buf = buf;
+	t.len = len + 1;
+
+	ret = spi_sync_transfer(spi, &t, 1);
 	if (ret < 0)
 		dev_err(&spi->dev, "error %d reading %x\n", ret, code);
+	else
+		memcpy(val, &buf[1], len);
+
+	kfree(buf);
 
 	return ret;
 }
@@ -78,34 +94,34 @@ static ssize_t m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 {
 	struct m25p *flash = nor->priv;
 	struct spi_device *spi = flash->spi;
-	struct spi_transfer t[2] = {};
-	struct spi_message m;
+	struct spi_transfer t = {0};
 	int cmd_sz = m25p_cmdsz(nor);
+	size_t txlen;
 	ssize_t ret;
-
-	spi_message_init(&m);
+	u8 *txbuf;
 
 	if (nor->program_opcode == SPINOR_OP_AAI_WP && nor->sst_write_second)
 		cmd_sz = 1;
 
-	flash->command[0] = nor->program_opcode;
-	m25p_addr2cmd(nor, to, flash->command);
+	txlen = cmd_sz + len;
 
-	t[0].tx_buf = flash->command;
-	t[0].len = cmd_sz;
-	spi_message_add_tail(&t[0], &m);
+	txbuf = kzalloc(txlen, GFP_KERNEL);
+	if (!txbuf)
+		return -ENOMEM;
 
-	t[1].tx_buf = buf;
-	t[1].len = len;
-	spi_message_add_tail(&t[1], &m);
+	txbuf[0] = nor->program_opcode;
+	m25p_addr2cmd(nor, to, txbuf);
+	memcpy(&txbuf[cmd_sz], buf, len);
 
-	ret = spi_sync(spi, &m);
-	if (ret)
-		return ret;
+	t.tx_buf = txbuf;
+	t.len = txlen;
 
-	ret = m.actual_length - cmd_sz;
-	if (ret < 0)
-		return -EIO;
+	ret = spi_sync_transfer(spi, &t, 1);
+	if (!ret)
+		ret = len;
+
+	kfree(txbuf);
+
 	return ret;
 }
 
@@ -130,10 +146,12 @@ static ssize_t m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 {
 	struct m25p *flash = nor->priv;
 	struct spi_device *spi = flash->spi;
-	struct spi_transfer t[2];
-	struct spi_message m;
+	struct spi_transfer t = {};
 	unsigned int dummy = nor->read_dummy;
+	int cmd_sz = m25p_cmdsz(nor);
+	size_t trlen;
 	ssize_t ret;
+	u8 *trbuf;
 
 	/* convert the dummy cycles to the number of bytes */
 	dummy /= 8;
@@ -160,29 +178,28 @@ static ssize_t m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 		return msg.retlen;
 	}
 
-	spi_message_init(&m);
-	memset(t, 0, (sizeof t));
+	trlen = cmd_sz + dummy + len;
 
-	flash->command[0] = nor->read_opcode;
-	m25p_addr2cmd(nor, from, flash->command);
+	trbuf = kzalloc(trlen, GFP_KERNEL);
+	if (!trbuf)
+		return -ENOMEM;
 
-	t[0].tx_buf = flash->command;
-	t[0].len = m25p_cmdsz(nor) + dummy;
-	spi_message_add_tail(&t[0], &m);
+	trbuf[0] = nor->read_opcode;
+	m25p_addr2cmd(nor, from, trbuf);
 
-	t[1].rx_buf = buf;
-	t[1].rx_nbits = m25p80_rx_nbits(nor);
-	t[1].len = min3(len, spi_max_transfer_size(spi),
-			spi_max_message_size(spi) - t[0].len);
-	spi_message_add_tail(&t[1], &m);
+	t.tx_buf = trbuf;
+	t.rx_buf = trbuf;
+	t.rx_nbits = m25p80_rx_nbits(nor);
+	t.len = trlen;
 
-	ret = spi_sync(spi, &m);
-	if (ret)
-		return ret;
+	ret = spi_sync_transfer(spi, &t, 1);
+	if (!ret) {
+		ret = len;
+		memcpy(buf, &trbuf[cmd_sz + dummy], len);
+	}
 
-	ret = m.actual_length - m25p_cmdsz(nor) - dummy;
-	if (ret < 0)
-		return -EIO;
+	kfree(trbuf);
+
 	return ret;
 }
 
