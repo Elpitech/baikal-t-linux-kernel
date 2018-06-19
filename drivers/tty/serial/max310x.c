@@ -251,6 +251,7 @@
 
 /* MAX14830 specific */
 #define MAX14830_BRGCFG_CLKDIS_BIT	(1 << 6) /* Clock Disable */
+#define MAX14830_REV_MASK		(0xf8)
 #define MAX14830_REV_ID			(0xb0)
 
 struct max310x_devtype {
@@ -437,7 +438,7 @@ static int max14830_detect(struct device *dev)
 	
 	val = max310x_reg_read(s->spi, MAX310X_REVID_EXTREG);
 	max310x_reg_write(s->spi, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
-	if (((val & MAX310x_REV_MASK) != MAX14830_REV_ID)) {
+	if (((val & MAX14830_REV_MASK) != MAX14830_REV_ID)) {
 		dev_err(dev,
 			"%s ID 0x%02x does not match\n", s->devtype->name, val);
 		return -ENODEV;
