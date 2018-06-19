@@ -375,30 +375,16 @@ static void __init bootmem_init(void)
 
 #else  /* !CONFIG_SGI_IP27 */
 
-static unsigned long __init bootmap_bytes(unsigned long pages)
-{
-	unsigned long bytes = DIV_ROUND_UP(pages, 8);
-
-	return ALIGN(bytes, sizeof(long));
-}
-
 static void __init bootmem_init(void)
 {
-	unsigned long reserved_end;
-	unsigned long mapstart = ~0UL;
-	unsigned long bootmap_size;
 	phys_addr_t ramstart = PHYS_ADDR_MAX;
-	bool bootmap_valid = false;
 	int i;
 
 	/*
-	 * Sanity check any INITRD first. We don't take it into account
-	 * for bootmem setup initially, rely on the end-of-kernel-code
-	 * as our memory range starting point. Once bootmem is inited we
+	 * Sanity check any INITRD first. Once memblock is inited we
 	 * will reserve the area used for the initrd.
 	 */
 	init_initrd();
-	reserved_end = (unsigned long) PFN_UP(__pa_symbol(&_end));
 
 	/*
 	 * max_low_pfn is not a number of pages. The number of pages
@@ -440,16 +426,6 @@ static void __init bootmem_init(void)
 			max_low_pfn = end;
 		if (start < min_low_pfn)
 			min_low_pfn = start;
-		if (end <= reserved_end)
-			continue;
-#ifdef CONFIG_BLK_DEV_INITRD
-		/* Skip zones before initrd and initrd itself */
-		if (initrd_end && end <= (unsigned long)PFN_UP(__pa(initrd_end)))
-			continue;
-#endif
-		if (start >= mapstart)
-			continue;
-		mapstart = max(reserved_end, start);
 	}
 
 	/*
@@ -482,53 +458,19 @@ static void __init bootmem_init(void)
 #endif
 		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 	}
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	/*
-	 * mapstart should be after initrd_end
-	 */
-	if (initrd_end)
-		mapstart = max(mapstart, (unsigned long)PFN_UP(__pa(initrd_end)));
+#ifdef CONFIG_HIGHMEM
+	pr_info("PFNs: low min %lu, low max %lu, high start %lu, high end %lu,"
+		"max %lu\n",
+		min_low_pfn, max_low_pfn, highstart_pfn, highend_pfn, max_pfn);
+#else
+	pr_info("PFNs: low min %lu, low max %lu, max %lu\n",
+		min_low_pfn, max_low_pfn, max_pfn);
 #endif
 
 	/*
-	 * check that mapstart doesn't overlap with any of
-	 * memory regions that have been reserved through eg. DTB
+	 * Initialize the boot-time allocator with low/high memory, but
+	 * set the allocation limit to low memory only
 	 */
-	bootmap_size = bootmap_bytes(max_low_pfn - min_low_pfn);
-
-	bootmap_valid = memory_region_available(PFN_PHYS(mapstart),
-						bootmap_size);
-	for (i = 0; i < boot_mem_map.nr_map && !bootmap_valid; i++) {
-		unsigned long mapstart_addr;
-
-		switch (boot_mem_map.map[i].type) {
-		case BOOT_MEM_RESERVED:
-			mapstart_addr = PFN_ALIGN(boot_mem_map.map[i].addr +
-						boot_mem_map.map[i].size);
-			if (PHYS_PFN(mapstart_addr) < mapstart)
-				break;
-
-			bootmap_valid = memory_region_available(mapstart_addr,
-								bootmap_size);
-			if (bootmap_valid)
-				mapstart = PHYS_PFN(mapstart_addr);
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (!bootmap_valid)
-		panic("No memory area to place a bootmap bitmap");
-
-	/*
-	 * Initialize the boot-time allocator with low memory only.
-	 */
-	if (bootmap_size != init_bootmem_node(NODE_DATA(0), mapstart,
-					 min_low_pfn, max_low_pfn))
-		panic("Unexpected memory size required for bootmap");
-
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		unsigned long start, end;
 
@@ -554,6 +496,7 @@ static void __init bootmem_init(void)
 
 		memblock_add_node(PFN_PHYS(start), PFN_PHYS(end - start), 0);
 	}
+	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
 
 	/*
 	 * Register fully available low RAM pages with the bootmem allocator.
@@ -589,8 +532,6 @@ static void __init bootmem_init(void)
 		 */
 		if (start >= max_low_pfn)
 			continue;
-		if (start < reserved_end)
-			start = reserved_end;
 		if (end > max_low_pfn)
 			end = max_low_pfn;
 
@@ -605,11 +546,6 @@ static void __init bootmem_init(void)
 		free_bootmem(PFN_PHYS(start), size << PAGE_SHIFT);
 		memory_present(0, start, end);
 	}
-
-	/*
-	 * Reserve the bootmap memory.
-	 */
-	reserve_bootmem(PFN_PHYS(mapstart), bootmap_size, BOOTMEM_DEFAULT);
 
 #ifdef CONFIG_RELOCATABLE
 	/*
