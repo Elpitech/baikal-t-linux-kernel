@@ -207,6 +207,14 @@
 #endif
 
 /*
+ * Wired register bits
+ */
+#define MIPSR6_WIRED_LIMIT_SHIFT 16
+#define MIPSR6_WIRED_LIMIT	(_ULCAST_(0xffff) << MIPSR6_WIRED_LIMIT_SHIFT)
+#define MIPSR6_WIRED_WIRED_SHIFT 0
+#define MIPSR6_WIRED_WIRED	(_ULCAST_(0xffff) << MIPSR6_WIRED_WIRED_SHIFT)
+
+/*
  * Values used for computation of new tlb entries
  */
 #define PL_4K		12
