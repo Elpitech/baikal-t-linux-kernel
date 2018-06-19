@@ -854,6 +854,11 @@ static void __init arch_mem_init(char **cmdline_p)
 				 crashk_res.end - crashk_res.start + 1);
 #endif
 	device_tree_init();
+#ifdef CONFIG_SPARSEMEM
+	for_each_memblock(memory, reg)
+		memory_present(0, memblock_region_memory_base_pfn(reg),
+				memblock_region_memory_end_pfn(reg));
+#endif /* CONFIG_SPARSEMEM */
 	sparse_init();
 	plat_swiotlb_setup();
 
