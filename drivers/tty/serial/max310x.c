@@ -1200,6 +1200,50 @@ static int max310x_gpio_direction_output(struct gpio_chip *chip,
 }
 #endif
 
+static void max310x_init_rs485(struct uart_port *port, struct device_node *node,
+			      int pnum)
+{
+	struct serial_rs485 *rs485conf = &port->rs485;
+	struct device_node *child;
+	u32 rs485_delay[2];
+	const __be32 *of_pnum_be;
+	int len, of_pnum = 0;
+
+	/* Nothing we can do if there is no fdt node */
+	if (!node)
+		return;
+
+	/* Scan subnodes looking for the port with passed id */
+	for_each_available_child_of_node(node, child) {
+		of_pnum = -1;
+		/* Get port number from 'reg' attribute */
+		of_pnum_be = of_get_property(child, "reg", &len);
+		if (of_pnum_be && (len == sizeof(*of_pnum_be)))
+			of_pnum = be32_to_cpup(of_pnum_be);
+		/* Stop looping if the node is found */
+		if (of_pnum == pnum)
+			break;
+	}
+
+	/* It's rs232 if port hasn't been found */
+	if (of_pnum != pnum)
+		return;
+
+	/* Set rs485 properties */
+	/* WARNING! This delay isn't of milliseconds, but of bits */
+	if (of_property_read_u32_array(child, "rs485-rts-delay",
+				       rs485_delay, 2) == 0) {
+		rs485conf->delay_rts_before_send = clamp(rs485_delay[0], 0U, 15U);
+		rs485conf->delay_rts_after_send = clamp(rs485_delay[1], 0U, 15U);
+	}
+
+	if (of_property_read_bool(child, "rs485-rx-during-tx"))
+		rs485conf->flags |= SER_RS485_RX_DURING_TX;
+
+	if (of_property_read_bool(child, "linux,rs485-enabled-at-boot-time"))
+		rs485conf->flags |= SER_RS485_ENABLED;
+}
+
 static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 			 int irq)
 {
@@ -1309,6 +1353,9 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		INIT_WORK(&s->p[i].md_work, max310x_md_proc);
 		/* Initialize queue for changing RS485 mode */
 		INIT_WORK(&s->p[i].rs_work, max310x_rs_proc);
+
+		/* Initialize RS485 fields */
+		max310x_init_rs485(&s->p[i].port, dev_of_node(dev), i);
 
 		/* Register port */
 		ret = uart_add_one_port(&max310x_uart, &s->p[i].port);
