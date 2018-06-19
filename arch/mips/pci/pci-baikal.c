@@ -507,12 +507,13 @@ static int dw_pcie_init(void)
 		}
 	}
 
-	pr_err("%s: PCIe error code = 0x%x\n", __func__, st);
+	pr_err("%s: PCIe error code = 0x%x (attempts %d)\n", __func__, st, i);
 
-	/* Check the speed is set in PCIE_LINK_CONTROL_LINK_STATUS_REG. */
+	/* Check the link settings in PCIE_LINK_CONTROL_LINK_STATUS_REG. */
 	reg = READ_PCIE_REG(PCIE_LINK_CONTROL_LINK_STATUS_REG);
-	reg = ((reg & PCIE_CAP_LINK_SPEED_MASK) >> PCIE_CAP_LINK_SPEED_SHIFT);
-	pr_info("%s: PCIe link speed GEN%d\n", __func__, reg);
+	pr_info("%s: PCIe link GEN%d x%d\n", __func__,
+		((reg & PCIE_CAP_LINK_SPEED_MASK) >> PCIE_CAP_LINK_SPEED_SHIFT),
+		((reg & PCIE_STA_LINK_WIDTH_MASK) >> PCIE_STA_LINK_WIDTH_SHIFT));
 
 	wmb();
 
