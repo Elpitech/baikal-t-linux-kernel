@@ -714,12 +714,12 @@ static irqreturn_t max310x_ist(int irq, void *dev_id)
 {
 	struct max310x_port *s = (struct max310x_port *)dev_id;
 
-	if (max310x_uart_driver.nr > 1) {
+	if (s->devtype->nr > 1) {
 		do {
 			unsigned int val = ~0;
 
 			val = max310x_reg_read(s->spi, MAX310X_GLOBALIRQ_REG);
-			val = ((1 << max310x_uart_driver.nr) - 1) & ~val;
+			val = ((1 << s->devtype->nr) - 1) & ~val;
 			if (!val)
 				break;
 			max310x_port_irq(s, fls(val) - 1);
@@ -1005,9 +1005,11 @@ static const struct uart_ops max310x_ops = {
 static int __maybe_unused max310x_suspend(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
-	int i;
+	int i, nr;
 
-	for (i = 0; i < max310x_uart_driver.nr; i++) {
+	nr = s->devtype->nr;
+
+	for (i = 0; i < nr; i++) {
 		uart_suspend_port(&max310x_uart_driver, &s->p[i].port);
 		s->devtype->power(&s->p[i].port, 0);
 	}
@@ -1018,9 +1020,11 @@ static int __maybe_unused max310x_suspend(struct device *dev)
 static int __maybe_unused max310x_resume(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
-	int i;
+	int i, nr;
 
-	for (i = 0; i < max310x_uart_driver.nr; i++) {
+	nr = s->devtype->nr;
+
+	for (i = 0; i < nr; i++) {
 		s->devtype->power(&s->p[i].port, 1);
 		uart_resume_port(&max310x_uart_driver, &s->p[i].port);
 	}
@@ -1211,6 +1215,12 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 	for (i = 0; i < devtype->nr; i++) {
 		/* Initialize port data */
 		uart_port_idx = max310x_get_uart_port_idx();
+		if (-1 == uart_port_idx)
+		{
+			dev_err(dev, "Unable register one port, range error\n");
+			ret = -ERANGE;
+			goto out_uart;
+		}
 		s->p[i].port.line	= uart_port_idx;
 		s->p[i].port.dev	= dev;
 		s->p[i].port.irq	= irq;
@@ -1218,7 +1228,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		s->p[i].port.fifosize	= MAX310X_FIFO_SIZE;
 		s->p[i].port.flags	= UPF_FIXED_TYPE | UPF_LOW_LATENCY;
 		s->p[i].port.iotype	= UPIO_PORT;
-		s->p[i].port.iobase	= uart_port_idx * 0x20;
+		s->p[i].port.iobase	= i * 0x20;
 		s->p[i].port.membase	= (void __iomem *)~0;
 		s->p[i].port.uartclk	= uartclk;
 		s->p[i].port.rs485_config = max310x_rs485_config;
@@ -1240,6 +1250,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		if (ret)
 		{
 			dev_err(dev, "Unable register one port\n");
+			max310x_free_uart_port_idx(uart_port_idx);
 			mutex_destroy(&s->mutex);
 			mutex_unlock(&max310x_lock);
 			return ret;
