@@ -268,11 +268,18 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 /* Must be called inside pump_transfers() */
 static int poll_transfer(struct dw_spi *dws)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
+
 	do {
 		dw_writer(dws);
 		dw_reader(dws);
 		cpu_relax();
 	} while (dws->rx_end > dws->rx);
+
+	local_irq_restore(flags);
+	preempt_check_resched();
 
 	return 0;
 }
