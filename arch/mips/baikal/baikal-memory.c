@@ -112,6 +112,7 @@ int /* __init*/ baikal_find_vga_mem_init(void)
 {
 	struct pci_dev *dev = 0;
 	struct resource *r;
+	bool found = false;
 	int idx;
 
 	if (uca_start)
@@ -128,11 +129,16 @@ int /* __init*/ baikal_find_vga_mem_init(void)
 				if (r->flags & IORESOURCE_MEM) {
 					uca_start = r->start;
 					uca_end = r->end;
-					return 0;
+					found = true;
+					goto found_exit;
 				}
 			}
 		}
 	}
+
+found_exit:
+	if (found)
+		pr_info("VGA MMIO access accelerated\n");
 
 	return 0;
 }
