@@ -375,10 +375,9 @@ static int dw_spi_transfer_one(struct spi_master *master,
 		ret = dws->dma_ops->dma_transfer(dws, transfer);
 		if (ret < 0)
 			return ret;
-	}
-
-	if (chip->poll_mode)
+	} else if (chip->poll_mode) {
 		return poll_transfer(dws);
+	}
 
 	return 1;
 }
