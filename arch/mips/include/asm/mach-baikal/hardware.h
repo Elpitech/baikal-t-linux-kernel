@@ -37,7 +37,7 @@
 #define BAIKAL_IO_SIZE			SZ_16M
 /* PCI mapping region */
 #define BAIKAL_PCI_MAP_START	(0x08000000)
-#define BAIKAL_PCI_MAP_SIZE		SZ_256M
+#define BAIKAL_PCI_MAP_SIZE		(SZ_256M + 0x3B00000U)
 
 /* Physical allocation of subsystems */
 #define BAIKAL_BOOT_START		(0x1FC00000)
