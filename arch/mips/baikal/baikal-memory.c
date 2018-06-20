@@ -47,8 +47,6 @@ void __init prom_free_prom_memory(void)
  */
 void __init plat_mem_setup(void)
 {
-	/* Setup dummy port segment */
-	set_io_port_base(CKSEG1);
 	if (IS_BUILTIN(CONFIG_EVA))
 		/* EVA should be configured in mach-baikal/kernel-init.h */
 		pr_info("Enhanced Virtual Addressing (EVA) activated\n");

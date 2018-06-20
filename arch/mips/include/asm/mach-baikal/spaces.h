@@ -40,10 +40,16 @@
  * High memory segment physical addresses
  */
 #define HIGHMEM_START		_AC(0x20000000, UL)
+
 /*
  * I/O memory space
  */
 #define IO_BASE		UNCAC_BASE
+
+/*
+ * PCI I/O ports space
+ */
+#define PCI_IOBASE	KSEG1ADDR(_AC(0x1bd00000, UL))
 
 #include_next <spaces.h>
 
