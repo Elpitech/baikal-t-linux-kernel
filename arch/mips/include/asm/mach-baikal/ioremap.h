@@ -24,6 +24,7 @@ static inline phys_addr_t fixup_bigphys_addr(phys_addr_t phys_addr, phys_addr_t 
 	return phys_addr;
 }
 
+#ifndef CONFIG_PCIE_DW_PLAT
 static inline void __iomem *plat_ioremap(phys_addr_t offset, unsigned long size,
 	unsigned long flags)
 {
@@ -39,5 +40,17 @@ static inline int plat_iounmap(const volatile void __iomem *addr)
 	return ((BAIKAL_MAP_PADDR_TO_PCI_BUS(CPHYSADDR((unsigned long)addr)) >= PCI_BUS_PHYS_PCIMEM_BASE_ADDR) &&
 		(BAIKAL_MAP_PADDR_TO_PCI_BUS(CPHYSADDR((unsigned long)addr)) < PCI_BUS_PHYS_PCIMEM_LIMIT_ADDR));
 }
+#else
+static inline void __iomem *plat_ioremap(phys_addr_t offset, unsigned long size,
+	unsigned long flags)
+{
+	return NULL;
+}
+
+static inline int plat_iounmap(const volatile void __iomem *addr)
+{
+	return 0;
+}
+#endif /* !CONFIG_PCIE_DW_PLAT */
 
 #endif /* __ASM_MACH_BAIKAL_IOREMAP_H */

@@ -79,6 +79,9 @@ config BAIKAL_T_COMMON
     # Clock source
     select COMMON_CLK_BAIKAL
 
+    # PCIe bus support
+    select PCI_DRIVERS_GENERIC
+
     # Serial UART
     select SERIAL_8250
     select SERIAL_8250_CONSOLE
