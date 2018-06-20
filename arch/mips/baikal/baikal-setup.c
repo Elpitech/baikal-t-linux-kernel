@@ -51,7 +51,11 @@ static int __init baikal_platform_setup(void)
    /* No critical actions - always return success */
    return 0;
 }
+#ifndef CONFIG_PCIE_DW_PLAT
 late_initcall(baikal_platform_setup);
+#else
+arch_initcall(baikal_platform_setup);
+#endif
 
 void baikal_be_init(void)
 {

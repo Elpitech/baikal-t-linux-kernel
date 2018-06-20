@@ -31,6 +31,7 @@
 #include <asm/mips-boards/generic.h>
 #include "pci-baikal.h"
 
+#ifndef CONFIG_PCIE_DW_PLAT
 static struct resource dw_mem_resource = {
 	.name	= "DW PCI MEM",
 	.start	= PCI_BUS_PHYS_PCIMEM_BASE_ADDR,
@@ -72,6 +73,7 @@ static int dw_msi_irq;
 #endif /* CONFIG_PCI_MSI */
 
 static int dw_aer_irq;
+#endif
 
 #define PCIE_PHY_RETRIES	1000000
 #define PCIE_ERROR_VALUE	0xFFFFFFFF
@@ -89,11 +91,13 @@ static int dw_aer_irq;
 #define ERROR_MISMATCH7		0x0400
 #define ERROR_MISMATCH8		0x0800
 
+#ifndef CONFIG_PCIE_DW_PLAT
 /* Retrieve the secondary bus number of the RC */
 static int dw_pcie_get_busn(void)
 {
    return PCIE_ROOT_BUS_NUM;
 }
+#endif
 
 void baikal_find_vga_mem_init(void);
 
@@ -378,14 +382,20 @@ static int dw_pcie_init(void)
 		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
 		pr_info("%s: new PCIE_RSTC: %08x\n", __func__, reg);
 	}
- 
+
+	/* 3.2 Set writing to RO Registers Using DBI */
+	WRITE_PCIE_REG(PCIE_MISC_CONTROL_1_OFF, DBI_RO_WR_EN);
+
+	/* set PCI bridge class */
+	reg = READ_PMU_REG(BK_PMU_PCIE_GENC);
+	reg &= ~PMU_PCIE_GENC_DBI2_MODE;
+	WRITE_PMU_REG(BK_PMU_PCIE_GENC, reg);
+	WRITE_PCIE_REG(PCIE_TYPE1_CLASS_CODE_REV_ID_REG, 0x06040001);
+
 	/* 3.1 Set DBI2 mode, dbi2_cs = 0x1 */
 	reg = READ_PMU_REG(BK_PMU_PCIE_GENC);
 	reg |= PMU_PCIE_GENC_DBI2_MODE;
 	WRITE_PMU_REG(BK_PMU_PCIE_GENC, reg);
-
-	/* 3.2 Set writing to RO Registers Using DBI */
-	WRITE_PCIE_REG(PCIE_MISC_CONTROL_1_OFF, DBI_RO_WR_EN);
 
 	/* 4.1 Allow access to the PHY registers, phy0_mgmt_pcs_reg_sel = 0x1. */
 	reg = READ_PMU_REG(BK_PMU_PCIE_GENC);
@@ -497,6 +507,7 @@ static int dw_pcie_init(void)
 	reg |= (0x00ff0000 | (PCIE_ROOT_BUS_NUM << 8)); /* IDT PCI Bridge don't like the primary bus equals 0. */
 	WRITE_PCIE_REG(PCIE_SEC_LAT_TIMER_SUB_BUS_SEC_BUS_PRI_BUS_REG, reg);
 
+#ifndef CONFIG_PCIE_DW_PLAT
 	/* Setup memory base. */
 	reg = ((PHYS_PCIMEM_LIMIT_ADDR & 0xfff00000) | ((PHYS_PCIMEM_BASE_ADDR & 0xfff00000) >> 16));
 	WRITE_PCIE_REG(PCIE_MEM_LIMIT_MEM_BASE_REG, reg);
@@ -506,6 +517,7 @@ static int dw_pcie_init(void)
 	WRITE_PCIE_REG(PCIE_SEC_STAT_IO_LIMIT_IO_BASE_REG, reg);
 	reg = ((PHYS_PCIIO_LIMIT_ADDR & 0xffff0000) | ((PHYS_PCIIO_BASE_ADDR & 0xffff0000) >> 16));
 	WRITE_PCIE_REG(PCIE_IO_LIMIT_UPPER_IO_BASE_UPPER_REG, reg);
+#endif
 
 	/* 8. Set master for PCIe EP. */
 	reg = READ_PCIE_REG(PCIE_TYPE1_STATUS_COMMAND_REG);
@@ -546,6 +558,7 @@ static int dw_pcie_init(void)
 
 	/* dw_set_iatu_region(dir,  index, base_addr, limit_addr, target_addr, tlp_type) */
 
+#ifndef CONFIG_PCIE_DW_PLAT
 	dw_set_iatu_region(REGION_DIR_OUTBOUND, IATU_RD0_INDEX, PHYS_PCI_RD0_BASE_ADDR >> 16,
 				PHYS_PCI_RD0_LIMIT_ADDR >> 16, 0x0000, TLP_TYPE_CFGRD0);
 
@@ -557,6 +570,7 @@ static int dw_pcie_init(void)
 
 	dw_set_iatu_region(REGION_DIR_OUTBOUND, IATU_IO_INDEX, PHYS_PCIIO_BASE_ADDR >> 16,
 				PHYS_PCIIO_LIMIT_ADDR >> 16, PHYS_PCIIO_BASE_ADDR >> 16, TLP_TYPE_IO);
+#endif
 
 	/*
 	 * Set GEN1 speed. In case EP supports GEN2
@@ -678,6 +692,17 @@ void dw_pcie_kexec_prepare(void)
 #endif
 #endif /* CONFIG_KEXEC */
 
+#ifdef CONFIG_PCIE_DW_PLAT
+void __init mips_pcibios_init(void)
+{
+	if (dw_pcie_init()) {
+		pr_err("%s: Init DW PCI controller failed\n", __func__);
+		return;
+	}
+
+	pr_info("PCIe initialization complete.\n");
+}
+#else /* !CONFIG_PCIE_DW_PLAT */
 void __init mips_pcibios_init(void)
 {
 	struct pci_controller *controller;
@@ -711,7 +736,7 @@ void __init mips_pcibios_init(void)
 #endif /* CONFIG_CPU_SUPPORTS_UNCACHED_ACCELERATED */
 }
 
-#ifdef CONFIG_PCIEAER	
+#ifdef CONFIG_PCIEAER
 irqreturn_t aer_irq(int irq, void *context);
 #endif /* CONFIG_PCIEAER */
 
@@ -775,7 +800,7 @@ static int dw_pci_drv_remove(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id dw_pci_of_match[] = {
 	{ .compatible = "be,baikal-pci", },
-	{ .compatible = "snps,dw-pci", },
+	{ .compatible = "snps,dw-pcie", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, dw_pci_of_match);
@@ -799,4 +824,4 @@ MODULE_DESCRIPTION("Baikal Electronics PCIe Driver.");
 MODULE_LICENSE("Proprietary");
 MODULE_AUTHOR("Alexey Malakhov");
 MODULE_ALIAS("platform:dw_pci");
-
+#endif /* CONFIG_PCIE_DW_PLAT */
