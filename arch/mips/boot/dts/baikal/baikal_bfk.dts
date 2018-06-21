@@ -107,6 +107,10 @@
 	status = "okay";
 };
 
+&gpio3 {
+	status = "okay";
+};
+
 &bc {
 	status = "okay";
 };

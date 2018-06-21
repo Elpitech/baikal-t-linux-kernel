@@ -286,9 +286,9 @@ endchoice
 config ARCH_NR_GPIO
     int "Baikal GPIOs plus architecture specific ones"
     range 32 512
-    default 40 if MACH_BAIKAL_BFK
-    default 40 if MACH_BAIKAL_BFK3
-    default 32
+    default 43 if MACH_BAIKAL_BFK
+    default 43 if MACH_BAIKAL_BFK3
+    default 35
     help
       Maximum number of GPIOs in the system.
 

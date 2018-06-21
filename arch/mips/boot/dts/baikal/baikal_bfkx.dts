@@ -64,6 +64,10 @@
 	status = "okay";
 };
 
+&gpio3 {
+	status = "okay";
+};
+
 &i2c0 {
 	codec@18 {
 		compatible = "tlv320aic310x";
