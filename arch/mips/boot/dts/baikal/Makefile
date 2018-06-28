@@ -9,6 +9,8 @@ dtb-$(CONFIG_DTB_TPLATFORMS_MSBT2)	+= tplatforms_msbt2.dtb \
 dtb-$(CONFIG_DTB_TPLATFORMS_MRBT1)	+= tplatforms_mrbt1.dtb \
 						tplatforms_xa1-mrbt1.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_MITX)	+= tplatforms_mitx.dtb
+dtb-$(CONFIG_DTB_TPLATFORMS_TC_SFBT1)	+= tplatforms_tc-sfbt1.dtb
+dtb-$(CONFIG_DTB_TPLATFORMS_TC_MSBT2)	+= tplatforms_tc-msbt2.dtb
 
 dtb-$(CONFIG_DT_NONE)	+= \
 						baikal_bfk.dtb	\
@@ -21,7 +23,9 @@ dtb-$(CONFIG_DT_NONE)	+= \
 						tplatforms_xa1-msbt2.dtb \
 						tplatforms_mrbt1.dtb \
 						tplatforms_xa1-mrbt1.dtb \
-						tplatforms_mitx.dtb
+						tplatforms_mitx.dtb \
+						tplatforms_tc-sfbt1.dtb \
+						tplatforms_tc-msbt2.dtb
 
 obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
 
