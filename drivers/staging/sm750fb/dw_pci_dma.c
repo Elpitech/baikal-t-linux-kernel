@@ -4,8 +4,10 @@
 #include <linux/fb.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/pci.h>
 #include <linux/uaccess.h>
 #include "sm750_ioctl.h"
+#include "sm750.h"
 
 void DWGetChanWrStatus(u8 chan, u32 *status);
 int DWDmaSingleBlockWrite(u8 chan, void *src, void *dst,
@@ -70,8 +72,10 @@ int dw_fb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 ssize_t dw_fb_write(struct fb_info *info, const char __user *buf,
 		    size_t count, loff_t *ppos)
 {
+	struct sm750_dev *sm750_dev = pci_get_drvdata(to_pci_dev(info->device));
 	unsigned long p = *ppos;
-	void *dst;
+	void __iomem *pdst;
+	void *vdst;
 	int err = 0;
 	unsigned long pfn;
 	void *pbuf;
@@ -110,7 +114,8 @@ ssize_t dw_fb_write(struct fb_info *info, const char __user *buf,
 		count = total_size - p;
 	}
 
-	dst = (void __force *)(info->screen_base + p);
+	pdst = (void __iomem *)sm750_dev->vidmem_start + p;
+	vdst = info->screen_buffer + p;
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
@@ -118,12 +123,13 @@ ssize_t dw_fb_write(struct fb_info *info, const char __user *buf,
 	dma_cache_wback_inv((u32)buf, count);
 
 	/* Odd address = can't DMA. Align */
-	if ((unsigned long)dst & 3) {
-		lead = 4 - ((unsigned long)dst & 3);
-		if (copy_from_user(dst, buf, lead))
+	if ((unsigned long)pdst & 3) {
+		lead = 4 - ((unsigned long)pdst & 3);
+		if (copy_from_user(vdst, buf, lead))
 			return -EFAULT;
 		buf += lead;
-		dst += lead;
+		pdst += lead;
+		vdst += lead;
 	}
 	/* DMA resolution is 32 bits */
 	if ((count - lead) & 3)
@@ -149,7 +155,7 @@ ssize_t dw_fb_write(struct fb_info *info, const char __user *buf,
 
 	err = DWDmaSingleBlockWrite(DMA_WRITE_CHAN /*chan*/,
 				    (void *)pbuf /* MEM */,
-				    (void *)CPHYSADDR((u32)dst) /* PCI */,
+				    (void *)pdst /* PCI */,
 				    dma_size /*size*/, 0 /*wei*/, 0 /*queue*/);
 
 #ifdef CHECK_STATUS
