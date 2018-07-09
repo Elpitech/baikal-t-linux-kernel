@@ -212,7 +212,7 @@ static int dw_pcie_init(void)
 {
 	volatile uint32_t reg;
 	int i, st = 0;
-	/* uint32_t pmu_pcie_rstc_mask = 0; */
+	uint32_t rstc_mask = 0;
 
 	/* PMU PCIe init. */
 
@@ -237,144 +237,28 @@ static int dw_pcie_init(void)
 	 * (PHY_RESET, PIPE_RESET, CORE_RST, PWR_RST, STICKY_RST, NONSTICKY_RST)
 	 */
 
-	/* PMU_PCIE_RSTC_REQ_RESET starts:
-	 * PIPE_RESET
-	 * CORE_RST
-	 * NON_STICKY_RST
-	 */
+	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
 #ifdef CONFIG_MIPS_BAIKAL_T1 /* we have Baikal-T1 chip, perform enhanced reset procedure */
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	if ( reg & PMU_PCIE_RSTC_REQ_RESET ) {
-		/* PIPE_RESET */
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg |= PMU_PCIE_RSTC_PIPE_RESET;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-		usleep_range(1, 10);
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg &= ~PMU_PCIE_RSTC_PIPE_RESET;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-
-		/* CORE_RST */
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg |= PMU_PCIE_RSTC_CORE_RST;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-		usleep_range(1, 10);
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg &= ~PMU_PCIE_RSTC_CORE_RST;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-
-		/* NONSTICKY_RST */
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg |= PMU_PCIE_RSTC_NONSTICKY_RST;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-		usleep_range(1, 10);
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg &= ~PMU_PCIE_RSTC_NONSTICKY_RST;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-	}
-
-	/* PMU_PCIE_RSTC_REQ_PHY_RST ---> PMU_PCIE_RSTC_PHY_RESET */
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	if ( reg & PMU_PCIE_RSTC_REQ_PHY_RST ) {
-		reg |= PMU_PCIE_RSTC_PHY_RESET;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-		usleep_range(1, 10);
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg &= ~PMU_PCIE_RSTC_PHY_RESET;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-	}
-
-	/* PMU_PCIE_RSTC_REQ_CORE_RST ---> PMU_PCIE_RSTC_CORE_RST */
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	if ( reg & PMU_PCIE_RSTC_REQ_CORE_RST ) {
-		reg |= PMU_PCIE_RSTC_CORE_RST;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-		usleep_range(1, 10);
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg &= ~PMU_PCIE_RSTC_CORE_RST;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-	}
-
-	/* PMU_PCIE_RSTC_REQ_STICKY_RST ---> PMU_PCIE_RSTC_STICKY_RST */
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	if ( reg & PMU_PCIE_RSTC_REQ_STICKY_RST ) {
-		reg |= PMU_PCIE_RSTC_STICKY_RST;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-		usleep_range(1, 10);
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg &= ~PMU_PCIE_RSTC_STICKY_RST;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-	}
-
-	/* PMU_PCIE_RSTC_REQ_NON_STICKY_RST ---> PMU_PCIE_RSTC_NONSTICKY_RST */
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	if ( reg & PMU_PCIE_RSTC_REQ_NON_STICKY_RST ) {
-		reg |= PMU_PCIE_RSTC_NONSTICKY_RST;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-		usleep_range(1, 10);
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg &= ~PMU_PCIE_RSTC_NONSTICKY_RST;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-	}
-
-	/* 5.1 set & clear individual bits */
-	/*
-	pmu_pcie_rstc_mask = 0;
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	if ( reg & PMU_PCIE_RSTC_REQ_RESET )
-		pmu_pcie_rstc_mask |= PMU_PCIE_RSTC_PHY_RESET;
-	if ( reg & PMU_PCIE_RSTC_REQ_PHY_RST )
-		pmu_pcie_rstc_mask |= PMU_PCIE_RSTC_PHY_RESET;
-	if ( reg & PMU_PCIE_RSTC_REQ_CORE_RST )
-		pmu_pcie_rstc_mask |= PMU_PCIE_RSTC_CORE_RST;
-	if ( reg & PMU_PCIE_RSTC_REQ_STICKY_RST )
-		pmu_pcie_rstc_mask |= PMU_PCIE_RSTC_STICKY_RST;
-	if ( reg & PMU_PCIE_RSTC_REQ_NON_STICKY_RST )
-		pmu_pcie_rstc_mask |= PMU_PCIE_RSTC_NONSTICKY_RST;
-	if (pmu_pcie_rstc_mask) {
-		reg |= pmu_pcie_rstc_mask;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-		usleep_range(1, 10);
-		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		reg &= ~pmu_pcie_rstc_mask;
-		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-	}
-	*/
-
-	/* 5.2 set & clear multiple bits */
-	/*pmu_pcie_rstc_mask = (PMU_PCIE_RSTC_PIPE_RESET | PMU_PCIE_RSTC_PWR_RST);*/
-	/* PMU_PCIE_RSTC_PIPE_RESET */
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	reg |= PMU_PCIE_RSTC_PIPE_RESET;
-	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-	usleep_range(1, 10);
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	reg &= ~PMU_PCIE_RSTC_PIPE_RESET;
-	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-	/* PMU_PCIE_RSTC_PWR_RST */
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	reg |= PMU_PCIE_RSTC_PWR_RST;
-	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-	usleep_range(1, 10);
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	reg &= ~PMU_PCIE_RSTC_PWR_RST;
-	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
+	if (reg & PMU_PCIE_RSTC_REQ_PHY_RST)
+		rstc_mask |= PMU_PCIE_RSTC_PHY_RESET;
+	if (reg & PMU_PCIE_RSTC_REQ_CORE_RST)
+		rstc_mask |= PMU_PCIE_RSTC_CORE_RST;
+	if (reg & PMU_PCIE_RSTC_REQ_STICKY_RST)
+		rstc_mask |= PMU_PCIE_RSTC_STICKY_RST;
+	if (reg & PMU_PCIE_RSTC_REQ_NON_STICKY_RST)
+		rstc_mask |= PMU_PCIE_RSTC_NONSTICKY_RST;
 #else /* we have Baikal-T chip, perform simplified reset procedure */
-	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	reg |= (PMU_PCIE_RSTC_PHY_RESET | PMU_PCIE_RSTC_PIPE_RESET |
-		PMU_PCIE_RSTC_CORE_RST|  PMU_PCIE_RSTC_PWR_RST |
-		PMU_PCIE_RSTC_STICKY_RST | PMU_PCIE_RSTC_NONSTICKY_RST
-		/*PMU_PCIE_RSTC_HOT_RESET*/);
-	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
-
-	reg &= ~(PMU_PCIE_RSTC_PHY_RESET | PMU_PCIE_RSTC_PIPE_RESET |
-		PMU_PCIE_RSTC_CORE_RST|  PMU_PCIE_RSTC_PWR_RST |
-		PMU_PCIE_RSTC_STICKY_RST | PMU_PCIE_RSTC_NONSTICKY_RST);
-	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
+	rstc_mask = (PMU_PCIE_RSTC_PHY_RESET | PMU_PCIE_RSTC_PIPE_RESET |
+		     PMU_PCIE_RSTC_CORE_RST|  PMU_PCIE_RSTC_PWR_RST |
+		     PMU_PCIE_RSTC_STICKY_RST | PMU_PCIE_RSTC_NONSTICKY_RST);
 #endif /* CONFIG_MIPS_BAIKAL_T1 */
-
+	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg | rstc_mask);
+	usleep_range(10, 20);
 	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	pr_info("%s: PCIE_RSTC after reset: %08x\n", __func__, reg);
+	reg &= ~rstc_mask;
+	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
+	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
+	pr_info("%s: PCIE_RSTC after reset: %08x (mask was %x)\n", __func__, reg, rstc_mask);
 	if (reg & 0x3f11) {
 		reg &= ~0x3f11;
 		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
