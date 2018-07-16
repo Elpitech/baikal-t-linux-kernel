@@ -13,6 +13,16 @@ dtb-$(CONFIG_DTB_TPLATFORMS_TC_SFBT1)	+= tplatforms_tc-sfbt1.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_TC_MSBT2)	+= tplatforms_tc-msbt2.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_AXT1_SFBT1)	+= tplatforms_axt1-sfbt1.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_AXT1_MSBT2)	+= tplatforms_axt1-msbt2.dtb
+dtb-$(CONFIG_DTB_TPLATFORMS_CNC_SFBT1)	+= tplatforms_cnccu-sfbt1.dtb \
+						tplatforms_cnccu3-sfbt1.dtb \
+						tplatforms_cncio-sfbt1.dtb \
+						tplatforms_cncttl-sfbt1.dtb \
+						tplatforms_cncdac-sfbt1.dtb
+dtb-$(CONFIG_DTB_TPLATFORMS_CNC_MSBT2)	+= tplatforms_cnccu-msbt2.dtb \
+						tplatforms_cnccu3-msbt2.dtb \
+						tplatforms_cncio-msbt2.dtb \
+						tplatforms_cncttl-msbt2.dtb \
+						tplatforms_cncdac-msbt2.dtb
 
 dtb-$(CONFIG_DT_NONE)	+= \
 						baikal_bfk.dtb	\
@@ -29,7 +39,17 @@ dtb-$(CONFIG_DT_NONE)	+= \
 						tplatforms_tc-sfbt1.dtb \
 						tplatforms_tc-msbt2.dtb \
 						tplatforms_axt1-sfbt1.dtb \
-						tplatforms_axt1-msbt2.dtb
+						tplatforms_axt1-msbt2.dtb \
+						tplatforms_cnccu-sfbt1.dtb \
+						tplatforms_cnccu3-sfbt1.dtb \
+						tplatforms_cncio-sfbt1.dtb \
+						tplatforms_cncttl-sfbt1.dtb \
+						tplatforms_cncdac-sfbt1.dtb \
+						tplatforms_cnccu-msbt2.dtb \
+						tplatforms_cnccu3-msbt2.dtb \
+						tplatforms_cncio-msbt2.dtb \
+						tplatforms_cncttl-msbt2.dtb \
+						tplatforms_cncdac-msbt2.dtb
 
 obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
 
