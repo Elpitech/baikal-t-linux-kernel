@@ -26,6 +26,12 @@
 			reg = <0x07000000 0x01000000>;
 		};
 	};
+
+	platform_setting {
+		sm750,backlight-gpios = <&porta 29 GPIO_ACTIVE_HIGH>,
+					<&porta 31 GPIO_ACTIVE_HIGH>;
+		sm750,backlight-pwm = <0>;
+	};
 };
 
 &mdio0 {
