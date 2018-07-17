@@ -1278,6 +1278,8 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	/* call chipInit routine */
 	hw_sm750_inithw(sm750_dev, pdev);
 
+	sm750_setup_bl(sm750_dev);
+
 	/* allocate frame buffer info structures according to g_dualview */
 	max_fb = g_dualview ? 2 : 1;
 	for (fbidx = 0; fbidx < max_fb; fbidx++) {
@@ -1291,6 +1293,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 release_fb:
 	sm750fb_frambuffer_release(sm750_dev);
 	smi_release_dma(sm750_dev);
+	sm750_remove_bl(sm750_dev);
 	sm750_remove_ddc(sm750_dev);
 	return err;
 }
@@ -1303,6 +1306,7 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 
 	sm750fb_frambuffer_release(sm750_dev);
 	smi_release_dma(sm750_dev);
+	sm750_remove_bl(sm750_dev);
 	sm750_remove_ddc(sm750_dev);
 	arch_phys_wc_del(sm750_dev->mtrr.vram);
 

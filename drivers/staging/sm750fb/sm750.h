@@ -5,6 +5,9 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/pci.h>
 #include <linux/dmaengine.h>
+#include <linux/spinlock.h>
+#include <linux/gpio/consumer.h>
+#include <linux/backlight.h>
 
 #define FB_ACCEL_SMI 0xab
 
@@ -61,6 +64,16 @@ struct sm750_ddc {
 	bool ddc_registered;
 };
 
+struct sm750_bl {
+	struct backlight_device *bd;
+	struct gpio_desc *up;
+	struct gpio_desc *down;
+	unsigned char pwm;
+	unsigned char count;
+	spinlock_t count_lock;
+	bool bl_registered;
+};
+
 struct lynx_accel {
 	/* base virtual address of DPR registers */
 	volatile unsigned char __iomem *dprBase;
@@ -93,6 +106,7 @@ struct sm750_dev {
 	struct fb_info *fbinfo[2];
 	struct lynx_accel accel;
 	struct sm750_ddc ddc[2];	/* primary and secondary DDC */
+	struct sm750_bl bl;
 	int accel_off;
 	int fb_count;
 	int mtrr_off;
@@ -219,6 +233,9 @@ int hw_sm750_pan_display(struct lynxfb_crtc *crtc,
 int sm750_setup_ddc(struct sm750_dev *);
 void sm750_remove_ddc(struct sm750_dev *);
 char *sm750_ddc_read_edid(struct i2c_adapter *);
+
+int sm750_setup_bl(struct sm750_dev *sm750_dev);
+void sm750_remove_bl(struct sm750_dev *sm750_dev);
 
 #ifdef CONFIG_SM750_DMA
 int smi_setup_dma(struct sm750_dev *sm750_dev);
