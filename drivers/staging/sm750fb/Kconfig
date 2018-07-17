@@ -5,6 +5,8 @@ config FB_SM750
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
 	select I2C_ALGOBIT
 	help
 	  Frame buffer driver for the Silicon Motion SM750 chip
