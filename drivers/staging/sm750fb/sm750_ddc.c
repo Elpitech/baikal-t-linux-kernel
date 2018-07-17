@@ -9,6 +9,7 @@
  */
 
 #include <linux/fb.h>
+#include <linux/of.h>
 #include "ddk750_reg.h"
 #include "sm750.h"
 
@@ -175,15 +176,28 @@ int sm750_ddc_init(struct sm750_ddc *ddc)
 
 int sm750_setup_ddc(struct sm750_dev *sm750_dev)
 {
-	int ret = 0;
+	struct device_node *devnode;
 	struct sm750_ddc *ddc_p;
+	u32 dvi[2], crt[2];
+	int ret = 0;
+
+	devnode = of_find_node_by_name(NULL, "platform_setting");
+	if (!devnode)
+		return -ENOENT;
+
+	if (of_property_read_u32_array(devnode, "sm750,dvi_ddc", dvi, 2) ||
+	    of_property_read_u32_array(devnode, "sm750,crt_ddc", crt, 2)) {
+		of_node_put(devnode);
+		return -EINVAL;
+	}
+	of_node_put(devnode);
 
 	/* DDC0 - primary (panel/DVI output) */
 	ddc_p = &sm750_dev->ddc[0];
 	strlcpy(ddc_p->ddc_adapter.name, "sm750 DVI i2c",
 		sizeof(ddc_p->ddc_adapter.name));
-	ddc_p->i2c_scl_pin = 30;
-	ddc_p->i2c_sda_pin = 31;
+	ddc_p->i2c_scl_pin = dvi[0];
+	ddc_p->i2c_sda_pin = dvi[1];
 	ddc_p->regs = sm750_dev->pvReg;
 	ddc_p->ddc_adapter.dev.parent = &sm750_dev->pdev->dev;
 	ret = sm750_ddc_init(ddc_p);
@@ -193,8 +207,8 @@ int sm750_setup_ddc(struct sm750_dev *sm750_dev)
 	ddc_p = &sm750_dev->ddc[1];
 	strlcpy(ddc_p->ddc_adapter.name, "sm750 CRT i2c",
 		sizeof(ddc_p->ddc_adapter.name));
-	ddc_p->i2c_scl_pin = 17;
-	ddc_p->i2c_sda_pin = 18;
+	ddc_p->i2c_scl_pin = crt[0];
+	ddc_p->i2c_sda_pin = crt[1];
 	ddc_p->regs = sm750_dev->pvReg;
 	ddc_p->ddc_adapter.dev.parent = &sm750_dev->pdev->dev;
 	ret = sm750_ddc_init(ddc_p);
