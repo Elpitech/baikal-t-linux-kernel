@@ -54,6 +54,11 @@
 			linux,default-trigger = "disk-activity";
 		};
 	};
+
+	platform_setting {
+		sm750,dvi_ddc = <30 31>;
+		sm750,crt_ddc = <17 18>;
+	};
 };
 
 &usb {
