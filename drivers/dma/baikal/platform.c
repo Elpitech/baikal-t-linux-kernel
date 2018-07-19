@@ -25,11 +25,22 @@
 #include <linux/platform_data/dma-baikal.h>
 #include "internal.h"
 
-#ifdef CONFIG_MIPS_BAIKAL
-extern struct baikal_dma_chip *baikal_dma_chip;
-#endif /* CONFIG_MIPS_BAIKAL */
-
 #define DRV_NAME	"baikal-edma"
+
+#ifdef CONFIG_MIPS_BAIKAL
+#include <linux/pci.h>
+
+static struct baikal_dma_chip *baikal_dma_chip;
+
+static void baikal_t1_pcie_dmac_fixup(struct pci_dev *pdev)
+{
+	if (baikal_dma_chip) {
+		dev_info(&pdev->dev, "eDMA support enabled\n");
+		dev_set_drvdata(&pdev->bus->dev, baikal_dma_chip);
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, baikal_t1_pcie_dmac_fixup);
+#endif /* CONFIG_MIPS_BAIKAL */
 
 #ifdef CONFIG_OF
 	static struct baikal_dma_platform_data *

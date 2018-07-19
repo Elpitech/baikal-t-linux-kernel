@@ -23,11 +23,6 @@
 #include <linux/of_pci.h>
 #include <linux/delay.h>
 
-#ifdef CONFIG_BAIKAL_EDMA
-#include <linux/dma/baikal.h>
-struct baikal_dma_chip *baikal_dma_chip;
-#endif /* CONFIG_BAIKAL_EDMA */
-
 #include "pci-baikal.h"
 
 #define LINK_RETRAIN_TIMEOUT HZ
@@ -147,17 +142,6 @@ static void baikal_t1_pcie_link_speed_fixup(struct pci_dev *pdev)
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, baikal_t1_pcie_link_speed_fixup);
-
-#ifdef CONFIG_BAIKAL_EDMA
-static void baikal_t1_pcie_dmac_fixup(struct pci_dev *pdev)
-{
-	if (baikal_dma_chip) {
-		dev_info(&pdev->dev, "eDMA support enabled - use eDMA-aware device driver to utilize\n");
-		dev_set_drvdata(&pdev->bus->dev, baikal_dma_chip);
-	}
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, baikal_t1_pcie_dmac_fixup);
-#endif /* CONFIG_BAIKAL_EDMA */
 
 int pcibios_plat_dev_init(struct pci_dev *dev)
 {
