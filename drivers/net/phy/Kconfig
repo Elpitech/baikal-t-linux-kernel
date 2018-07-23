@@ -169,6 +169,11 @@ config MICROCHIP_PHY
 	help
 	  Supports the LAN88XX PHYs.
 
+config MICROSEMI_PHY
+	tristate "Microsemi PHYs"
+	---help---
+	  Currently supports VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
+
 config FIXED_PHY
 	tristate "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
 	depends on PHYLIB
