@@ -219,6 +219,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 #ifdef CONFIG_OF
 	if (priv->device->of_node)
 		mdio_bus_data->reset_gpio = -1;
+	if (priv->plat->mdio_node)
+		new_bus->dev.of_node = priv->plat->mdio_node;
 #endif
 
 	new_bus->name = "stmmac";
@@ -241,7 +243,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
 		struct phy_device *phydev = new_bus->phy_map[addr];
 		if (phydev) {
-			int act = 0;
+			const char *act = "auto-detected";
 			char irq_num[4];
 			char *irq_str;
 
@@ -260,10 +262,15 @@ int stmmac_mdio_register(struct net_device *ndev)
 			 * and no PHY number was provided to the MAC,
 			 * use the one probed here.
 			 */
-			if (priv->plat->phy_addr == -1)
+			if (priv->plat->phy_addr == -1) {
 				priv->plat->phy_addr = addr;
+			}
+			if (priv->plat->phy_node &&
+			    priv->plat->phy_node == phydev->dev.of_node) {
+				priv->plat->phy_addr = addr;
+				act = "of selected";
+			}
 
-			act = (priv->plat->phy_addr == addr);
 			switch (phydev->irq) {
 			case PHY_POLL:
 				irq_str = "POLL";
@@ -276,10 +283,9 @@ int stmmac_mdio_register(struct net_device *ndev)
 				irq_str = irq_num;
 				break;
 			}
-			pr_info("%s: PHY ID %08x at %d IRQ %s (%s)%s\n",
+			pr_info("%s: PHY ID %08x at %d IRQ %s (%s) %s\n",
 				ndev->name, phydev->phy_id, addr,
-				irq_str, dev_name(&phydev->dev),
-				act ? " active" : "");
+				irq_str, dev_name(&phydev->dev), act);
 			found = 1;
 		}
 	}
