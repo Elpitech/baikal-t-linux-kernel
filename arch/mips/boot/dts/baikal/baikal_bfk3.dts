@@ -54,10 +54,54 @@
 
 &gmac0 {
 	status = "okay";
+	phy-mode = "rgmii-txid";
+	phy-handle = <&gmac0_phy>;
+	snps,reset-gp-out;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10200 1000>;
+
+	gmdio0: gmac0_mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gmac0_phy: ethernet-phy@3 {
+			compatible = "micrel,ksz9031", "ethernet-phy-id0022.1620", "ethernet-phy-ieee802.3-c22";
+			reg = <0x3>;
+
+			txd0-skew-ps = <0>;
+			txd1-skew-ps = <0>;
+			txd2-skew-ps = <0>;
+			txd3-skew-ps = <0>;
+			txc-skew-ps  = <0xff>;
+		};
+	};
 };
 
 &gmac1 {
 	status = "okay";
+	phy-mode = "rgmii-txid";
+	phy-handle = <&gmac1_phy>;
+	snps,reset-gp-out;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10200 1000>;
+
+	gmdio1: gmac1-mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gmac1_phy: ethernet-phy@3 {
+			compatible = "micrel,ksz9031", "ethernet-phy-id0022.1620", "ethernet-phy-ieee802.3-c22";
+			reg = <0x3>;
+
+			txd0-skew-ps = <0>;
+			txd1-skew-ps = <0>;
+			txd2-skew-ps = <0>;
+			txd3-skew-ps = <0>;
+			txc-skew-ps  = <0xff>;
+		};
+	};
 };
 
 &gpio {
