@@ -24,10 +24,12 @@
 #include <linux/usb/usb_phy_generic.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
+#include <linux/gpio/consumer.h>
 
 struct dwc3_baikal {
 	struct device	*dev;
 	struct clk	*clk;
+	struct gpio_desc *rst;
 };
 
 static int be_dwc3_probe(struct platform_device *pdev)
@@ -61,11 +63,21 @@ static int be_dwc3_probe(struct platform_device *pdev)
 	}
 
 	if (node) {
-			ret = of_platform_populate(node, NULL, NULL, dev);
-			if (ret) {
-				dev_err(&pdev->dev, "failed to create dwc3 core\n");
-				goto __error;
-			}
+		/* Deassert optional reset signal */
+                dwc->rst = fwnode_get_named_gpiod(&node->fwnode,
+			"reset-gpio", 0, GPIOD_OUT_LOW, "USB reset");
+		if (PTR_ERR(dwc->rst) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto __error;
+		} else if (!IS_ERR(dwc->rst)) {
+			dev_info(&pdev->dev, "Reset GPIO deasserted\n");
+		}
+
+		ret = of_platform_populate(node, NULL, NULL, dev);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to create dwc3 core\n");
+			goto __error;
+		}
 	} else {
 		dev_err(dev, "no device node, failed to add dwc3 core\n");
 		ret = -ENODEV;
@@ -97,6 +109,9 @@ static int be_dwc3_remove(struct platform_device *pdev)
 	clk_disable_unprepare(dwc->clk);
 
 	platform_set_drvdata(pdev, NULL);
+
+	if (!IS_ERR_OR_NULL(dwc->rst))
+		gpiod_put(dwc->rst);
 
 	return 0;
 }
