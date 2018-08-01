@@ -528,6 +528,12 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 			      (wchar_t *)hub->serial,
 			      USB251XB_STRING_BUFSIZE);
 
+	hub->port_swap = USB251XB_DEF_PORT_SWAP;
+	if (of_get_property(np, "us-lanes-inverted", NULL))
+		hub->port_swap |= BIT(0);
+	usb251xb_get_ports_field(hub, "ds-lanes-interted", data->port_cnt,
+				 &hub->non_rem_dev);
+
 	/* The following parameters are currently not exposed to devicetree, but
 	 * may be as soon as needed.
 	 */
@@ -535,7 +541,6 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	hub->boost_up = USB251XB_DEF_BOOST_UP;
 	hub->boost_57 = USB251XB_DEF_BOOST_57;
 	hub->boost_14 = USB251XB_DEF_BOOST_14;
-	hub->port_swap = USB251XB_DEF_PORT_SWAP;
 	hub->port_map12 = USB251XB_DEF_PORT_MAP_12;
 	hub->port_map34 = USB251XB_DEF_PORT_MAP_34;
 	hub->port_map56 = USB251XB_DEF_PORT_MAP_56;
