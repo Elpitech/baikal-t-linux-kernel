@@ -80,15 +80,13 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		dev_info(dev,
 			"low voltage detected, check/replace RTC battery.\n");
 
-	if (buf[PCF2127_REG_SC] & PCF2127_OSF) {
-		/*
-		 * no need clear the flag here,
-		 * it will be cleared once the new date is saved
-		 */
+	/*
+	 * no need clear the flag here,
+	 * it will be cleared once the new date is saved
+	 */
+	if (buf[PCF2127_REG_SC] & PCF2127_OSF)
 		dev_warn(dev,
 			 "oscillator stop detected, date/time is not reliable\n");
-		return -EINVAL;
-	}
 
 	dev_dbg(dev,
 		"%s: raw data is cr1=%02x, cr2=%02x, cr3=%02x, "
@@ -99,13 +97,15 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		buf[3], buf[4], buf[5],
 		buf[6], buf[7], buf[8], buf[9]);
 
-
 	tm->tm_sec = bcd2bin(buf[PCF2127_REG_SC] & 0x7F);
 	tm->tm_min = bcd2bin(buf[PCF2127_REG_MN] & 0x7F);
 	tm->tm_hour = bcd2bin(buf[PCF2127_REG_HR] & 0x3F); /* rtc hr 0-23 */
 	tm->tm_mday = bcd2bin(buf[PCF2127_REG_DM] & 0x3F);
 	tm->tm_wday = buf[PCF2127_REG_DW] & 0x07;
 	tm->tm_mon = bcd2bin(buf[PCF2127_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
+	/* Undefined on reset */
+	if (tm->tm_mon < 1 || tm->tm_mon > 12)
+		tm->tm_mon = 0;
 	tm->tm_year = bcd2bin(buf[PCF2127_REG_YR]);
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;	/* assume we are in 1970...2069 */
