@@ -378,6 +378,8 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		err = PTR_ERR(hub->gpio_reset);
 		dev_err(dev, "unable to request GPIO reset pin (%d)\n", err);
 		return err;
+	} else if (hub->gpio_reset) {
+		usleep_range(1, 10);
 	}
 
 	if (of_property_read_u16_array(np, "vendor-id", &hub->vendor_id, 1))
