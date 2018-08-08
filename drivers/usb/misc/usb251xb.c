@@ -268,11 +268,13 @@ static void usb251xb_reset(struct usb251xb *hub, int state)
 
 	i2c_lock_bus(hub->i2c->adapter, I2C_LOCK_SEGMENT);
 
+	usleep_range(1, 10);
+
 	gpiod_set_value_cansleep(hub->gpio_reset, state);
 
 	/* wait for hub recovery/stabilization */
 	if (!state)
-		usleep_range(500, 750);	/* >=500us at power on */
+		usleep_range(1000, 2000);	/* >=500us at power on */
 	else
 		usleep_range(1, 10);	/* >=1us at power down */
 
