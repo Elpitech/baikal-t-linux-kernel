@@ -60,8 +60,9 @@ enum rgmii_clock_delay {
 
 #define MSCC_EXT_PAGE_ACCESS		  31
 #define MSCC_PHY_PAGE_STANDARD		  0x0000 /* Standard registers */
-#define MSCC_PHY_PAGE_EXTENDED		  0x0001 /* Extended registers */
+#define MSCC_PHY_PAGE_EXTENDED		  0x0001 /* Extended reg - page 1 */
 #define MSCC_PHY_PAGE_EXTENDED_2	  0x0002 /* Extended reg - page 2 */
+#define MSCC_PHY_PAGE_GENERAL		  0x0010 /* General purpose page */
 
 /* Extended Page 1 Registers */
 #define MSCC_PHY_EXT_MODE_CNTL		  19
@@ -75,6 +76,10 @@ enum rgmii_clock_delay {
 #define DOWNSHIFT_CNTL_POS		  2
 
 /* Extended Page 2 Registers */
+#define MSCC_PHY_EEE_CTRL		  17
+#define MSCC_PHY_LED0_ACT_HIGH_POL	  0x0400
+#define MSCC_PHY_LED1_ACT_HIGH_POL	  0x0800
+
 #define MSCC_PHY_RGMII_CNTL		  20
 #define RGMII_RX_CLK_DELAY_MASK		  0x0070
 #define RGMII_RX_CLK_DELAY_POS		  4
@@ -92,6 +97,10 @@ enum rgmii_clock_delay {
 #define SECURE_ON_ENABLE		  0x8000
 #define SECURE_ON_PASSWD_LEN_4		  0x4000
 
+/* General purpose page */
+#define MSCC_PHY_GPIO_CTRL_2		  14
+#define LEDS_TRISTATE_EN		  0x0200
+
 /* Microsemi PHY ID's */
 #define PHY_ID_VSC8530			  0x00070560
 #define PHY_ID_VSC8531			  0x00070570
@@ -108,7 +117,10 @@ enum rgmii_clock_delay {
 struct vsc8531_private {
 	int rate_magic;
 	u8 led_0_mode;
+	bool led_0_act_high;
 	u8 led_1_mode;
+	bool led_1_act_high;
+	bool leds_drive;
 	u8 mdix_ctrl;
 };
 
@@ -152,6 +164,70 @@ static int vsc85xx_led_cntl_set(struct phy_device *phydev,
 		reg_val |= ((u16)mode & LED_0_MODE_SEL_MASK);
 	}
 	rc = phy_write(phydev, MSCC_PHY_LED_MODE_SEL, reg_val);
+	mutex_unlock(&phydev->lock);
+
+	return rc;
+}
+
+static int vsc85xx_led_pol_set(struct phy_device *phydev,
+			       u8 led_num,
+			       bool act_high)
+{
+	int rc;
+	u16 reg_val, reg_act_high;
+
+	mutex_lock(&phydev->lock);
+	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_EXTENDED_2);
+	if (rc != 0)
+		goto out_unlock;
+
+	reg_val = phy_read(phydev, MSCC_PHY_EEE_CTRL);
+	if (led_num)
+		reg_act_high = MSCC_PHY_LED1_ACT_HIGH_POL;
+	else
+		reg_act_high = MSCC_PHY_LED0_ACT_HIGH_POL;
+
+	if (act_high)
+		reg_val |= reg_act_high;
+	else
+		reg_val &= ~reg_act_high;
+
+	rc = phy_write(phydev, MSCC_PHY_EEE_CTRL, reg_val);
+	if (rc != 0)
+		goto out_unlock;
+
+	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_STANDARD);
+
+out_unlock:
+	mutex_unlock(&phydev->lock);
+
+	return rc;
+}
+
+static int vsc85xx_leds_driver_set(struct phy_device *phydev,
+				   bool drive)
+{
+	int rc;
+	u16 reg_val;
+
+	mutex_lock(&phydev->lock);
+	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_GENERAL);
+	if (rc != 0)
+		goto out_unlock;
+
+	reg_val = phy_read(phydev, MSCC_PHY_GPIO_CTRL_2);
+	if (drive)
+		reg_val &= ~LEDS_TRISTATE_EN;
+	else
+		reg_val |= LEDS_TRISTATE_EN;
+
+	rc = phy_write(phydev, MSCC_PHY_GPIO_CTRL_2, reg_val);
+	if (rc != 0)
+		goto out_unlock;
+
+	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_STANDARD);
+
+out_unlock:
 	mutex_unlock(&phydev->lock);
 
 	return rc;
@@ -375,6 +451,17 @@ static int vsc85xx_dt_led_mode_get(struct phy_device *phydev,
 	return led_mode;
 }
 
+static int vsc85xx_dt_led_bool_prop(struct phy_device *phydev,
+				    char *led)
+{
+	struct device_node *of_node = phydev->mdio.dev.of_node;
+
+	if (!of_node)
+		return false;
+
+	return of_property_read_bool(of_node, led);
+}
+
 #else
 static int vsc85xx_edge_rate_magic_get(struct phy_device *phydev)
 {
@@ -386,6 +473,12 @@ static int vsc85xx_dt_led_mode_get(struct phy_device *phydev,
 				   u8 default_mode)
 {
 	return default_mode;
+}
+
+static int vsc85xx_dt_led_bool_prop(struct phy_device *phydev,
+				    char *led)
+{
+	return false;
 }
 #endif /* CONFIG_OF_MDIO */
 
@@ -498,7 +591,19 @@ static int vsc85xx_config_init(struct phy_device *phydev)
 	if (rc)
 		return rc;
 
+	rc = vsc85xx_led_pol_set(phydev, 1, vsc8531->led_1_act_high);
+	if (rc)
+		return rc;
+
 	rc = vsc85xx_led_cntl_set(phydev, 0, vsc8531->led_0_mode);
+	if (rc)
+		return rc;
+
+	rc = vsc85xx_led_pol_set(phydev, 0, vsc8531->led_0_act_high);
+	if (rc)
+		return rc;
+
+	rc = vsc85xx_leds_driver_set(phydev, vsc8531->leds_drive);
 	if (rc)
 		return rc;
 
@@ -582,12 +687,16 @@ static int vsc85xx_probe(struct phy_device *phydev)
 	if (led_mode < 0)
 		return led_mode;
 	vsc8531->led_0_mode = led_mode;
+	vsc8531->led_0_act_high = vsc85xx_dt_led_bool_prop(phydev, "vsc8531,led-0-active-high");
 
 	led_mode = vsc85xx_dt_led_mode_get(phydev, "vsc8531,led-1-mode",
 					   VSC8531_LINK_100_ACTIVITY);
 	if (led_mode < 0)
 		return led_mode;
 	vsc8531->led_1_mode = led_mode;
+	vsc8531->led_1_act_high = vsc85xx_dt_led_bool_prop(phydev, "vsc8531,led-1-active-high");
+
+	vsc8531->leds_drive = vsc85xx_dt_led_bool_prop(phydev, "vsc8531,leds-drive-low-high");
 
 	return 0;
 }
