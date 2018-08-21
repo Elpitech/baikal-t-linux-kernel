@@ -326,7 +326,7 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	/* Default SPI mode is SCPOL = 0, SCPH = 0 */
 	cr0 = (transfer->bits_per_word - 1)
 		| (chip->type << SPI_FRF_OFFSET)
-		| (spi->mode << SPI_MODE_OFFSET)
+		| ((spi->mode & SPI_MODE_3) << SPI_MODE_OFFSET)
 		| (chip->tmode << SPI_TMOD_OFFSET);
 
 	/*
