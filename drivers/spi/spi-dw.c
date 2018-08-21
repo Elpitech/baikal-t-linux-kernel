@@ -192,6 +192,9 @@ static void dw_writer(struct dw_spi *dws)
 		dw_write_io_reg(dws, DW_SPI_DR, txw);
 		dws->tx += dws->n_bytes;
 	}
+
+	/* Make sure the target chip is selected even if GPIO-CS is used */
+	dw_spi_set_cs(dws->master->cur_msg->spi, 0);
 }
 
 static void dw_reader(struct dw_spi *dws)
