@@ -120,6 +120,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	}
 	be_bc_enable_spi(dwsmmio->bc);
 
+	pdev->dev.dma_mask = NULL;
 	ret = dw_spi_add_host(&pdev->dev, dws);
 	if (ret)
 		goto dis_be_bc;
