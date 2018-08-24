@@ -76,6 +76,10 @@ config BAIKAL_T_COMMON
     select COMMON_CLK_BAIKAL
     select WDT_MIPS_GIC
 
+    # CPU frequency settings
+    select MIPS_EXTERNAL_TIMER
+    select CPU_FREQ
+
     # Serial UART
     select SERIAL_8250
     select SERIAL_8250_CONSOLE
