@@ -42,10 +42,12 @@ struct be_cpufreq {
 	unsigned int latency;		/* uS  */
 };
 
+static struct cpufreq_driver be_cpufreq_driver;
+
 static int be_cpufreq_notifier(struct notifier_block *nb,
 				 unsigned long val, void *data)
 {
-	struct be_cpufreq *cpufreq = (struct be_cpufreq *)data;
+	struct be_cpufreq *cpufreq = (struct be_cpufreq *)be_cpufreq_driver.driver_data;
 
 	if (val == CPUFREQ_POSTCHANGE)
 		cpufreq->latency = loops_per_jiffy;
@@ -60,13 +62,13 @@ static struct notifier_block be_cpufreq_notifier_block = {
 static int be_cpufreq_target(struct cpufreq_policy *policy,
 			       unsigned int index)
 {
-	struct be_cpufreq *cpufreq = (struct be_cpufreq *)policy->driver_data;
+	struct be_cpufreq *cpufreq = (struct be_cpufreq *)be_cpufreq_driver.driver_data;
 	unsigned int old_freq, new_freq;
 
 	old_freq = policy->cur;
 	new_freq = policy->freq_table[index].frequency;
 
-	dev_info(cpufreq->dev, "%u KHz --> %u KHz\n", old_freq, new_freq);
+	dev_dbg(cpufreq->dev, "%u KHz --> %u KHz\n", old_freq, new_freq);
 	clk_set_rate(cpufreq->clk, new_freq * 1000);
 
 	return 0;
@@ -74,12 +76,12 @@ static int be_cpufreq_target(struct cpufreq_policy *policy,
 
 static int be_cpufreq_init(struct cpufreq_policy *policy)
 {
-	struct be_cpufreq *cpufreq = (struct be_cpufreq *)policy->driver_data;
+	struct be_cpufreq *cpufreq = (struct be_cpufreq *)be_cpufreq_driver.driver_data;
 	struct cpufreq_frequency_table *freq_tbl;
 	unsigned int steps, freq;
 	int i, ret ;
 
-	steps = (PLL_FREQ_MAX - PLL_FREQ_MIN) / PLL_FREQ_STEP;
+	steps = ((PLL_FREQ_MAX - PLL_FREQ_MIN) / PLL_FREQ_STEP) + 1;
 
 	freq_tbl = devm_kzalloc(cpufreq->dev, sizeof(*freq_tbl) * (steps + 1),
 					GFP_KERNEL);
@@ -96,10 +98,13 @@ static int be_cpufreq_init(struct cpufreq_policy *policy)
 			freq_tbl[i].frequency = CPUFREQ_ENTRY_INVALID;
 		else
 			freq_tbl[i].frequency = freq;
-		dev_info(cpufreq->dev, "CPUFreq index %d: frequency %d KHz\n", i,
-			freq_tbl[i].frequency);
 		freq += PLL_FREQ_STEP;
 	}
+	dev_info(cpufreq->dev, "CPUFreq first index %d: frequency %d KHz\n", 0,
+		 freq_tbl[0].frequency);
+	dev_info(cpufreq->dev, "CPUFreq last index %d: frequency %d KHz\n",
+		 steps - 1, freq_tbl[steps - 1].frequency);
+
 	freq_tbl[steps].frequency = CPUFREQ_TABLE_END;
 
 	policy->clk = cpufreq->clk;
