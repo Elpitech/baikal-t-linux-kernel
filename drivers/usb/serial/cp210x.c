@@ -241,7 +241,6 @@ struct cp210x_serial_private {
 	struct usb_serial	*serial;
 	struct gpio_chip	gc;
 	u8			config;
-	u8			gpio_mode;
 	bool			gpio_registered;
 #endif
 	u8			partnum;
@@ -429,20 +428,20 @@ struct cp210x_flow_ctl {
 #define CP210X_SERIAL_RTS_ACTIVE	1
 #define CP210X_SERIAL_RTS_FLOW_CTL	2
 
-/* CP210X_VENDOR_SPECIFIC, CP210X_GET_DEVICEMODE call reads these 0x2 bytes. */
-struct cp210x_pin_mode {
+/* CP2105 call reads these 0x2 bytes. */
+struct cp2105_pin_mode {
 	u8	eci;
 	u8	sci;
 } __packed;
 
-#define CP210X_PIN_MODE_MODEM		0
-#define CP210X_PIN_MODE_GPIO		BIT(0)
+#define CP2105_PIN_MODE_MODEM		0
+#define CP2105_PIN_MODE_GPIO		BIT(0)
 
 /*
- * CP210X_VENDOR_SPECIFIC, CP210X_GET_PORTCONFIG call reads these 0xf bytes.
- * Structure needs padding due to unused/unspecified bytes.
+ * CP210X_VENDOR_SPECIFIC, CP210X_GET_PORTCONFIG call reads these 0xf bytes
+ * from CP2105 chip. Structure needs padding due to unused/unspecified bytes.
  */
-struct cp210x_config {
+struct cp2105_config {
 	__le16	gpio_mode;
 	u8	__pad0[2];
 	__le16	reset_state;
@@ -453,20 +452,16 @@ struct cp210x_config {
 	u8	device_cfg;
 } __packed;
 
-/* GPIO modes */
-#define CP210X_SCI_GPIO_MODE_OFFSET	9
-#define CP210X_SCI_GPIO_MODE_MASK	GENMASK(11, 9)
-
-#define CP210X_ECI_GPIO_MODE_OFFSET	2
-#define CP210X_ECI_GPIO_MODE_MASK	GENMASK(3, 2)
-
 /* CP2105 port configuration values */
 #define CP2105_GPIO0_TXLED_MODE		BIT(0)
 #define CP2105_GPIO1_RXLED_MODE		BIT(1)
 #define CP2105_GPIO1_RS485_MODE		BIT(2)
 
-/* CP210X_VENDOR_SPECIFIC, CP210X_WRITE_LATCH call writes these 0x2 bytes. */
-struct cp210x_gpio_write {
+/*
+ * CP210X_VENDOR_SPECIFIC, CP210X_WRITE_LATCH call writes these 0x2 bytes
+ * from CP2105 controller.
+ */
+struct cp2105_gpio_write {
 	u8	mask;
 	u8	state;
 } __packed;
@@ -1286,7 +1281,7 @@ static void cp210x_break_ctl(struct tty_struct *tty, int break_state)
 }
 
 #ifdef CONFIG_GPIOLIB
-static int cp210x_gpio_request(struct gpio_chip *gc, unsigned int offset)
+static int cp2105_gpio_request(struct gpio_chip *gc, unsigned int offset)
 {
 	struct cp210x_serial_private *priv = to_cp210x_priv(gc);
 
@@ -1305,7 +1300,7 @@ static int cp210x_gpio_request(struct gpio_chip *gc, unsigned int offset)
 	return 0;
 }
 
-static int cp210x_gpio_get(struct gpio_chip *gc, unsigned int gpio)
+static int cp2105_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct cp210x_serial_private *priv = to_cp210x_priv(gc);
 	struct usb_serial *serial = priv->serial;
@@ -1320,11 +1315,11 @@ static int cp210x_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	return !!(buf & BIT(gpio));
 }
 
-static void cp210x_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
+static void cp2105_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 {
 	struct cp210x_serial_private *priv = to_cp210x_priv(gc);
 	struct usb_serial *serial = priv->serial;
-	struct cp210x_gpio_write buf;
+	struct cp2105_gpio_write buf;
 
 	if (value == 1)
 		buf.state = BIT(gpio);
@@ -1365,8 +1360,8 @@ static int cp210x_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio,
 static int cp2105_shared_gpio_init(struct usb_serial *serial)
 {
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
-	struct cp210x_pin_mode mode;
-	struct cp210x_config config;
+	struct cp2105_pin_mode mode;
+	struct cp2105_config config;
 	u8 intf_num = cp210x_interface_num(serial);
 	int result;
 
@@ -1384,35 +1379,29 @@ static int cp2105_shared_gpio_init(struct usb_serial *serial)
 
 	/*  2 banks of GPIO - One for the pins taken from each serial port */
 	if (intf_num == 0) {
-		if (mode.eci == CP210X_PIN_MODE_MODEM)
+		if (mode.eci == CP2105_PIN_MODE_MODEM)
 			return 0;
 
 		priv->config = config.eci_cfg;
-		priv->gpio_mode = (u8)((le16_to_cpu(config.gpio_mode) &
-						CP210X_ECI_GPIO_MODE_MASK) >>
-						CP210X_ECI_GPIO_MODE_OFFSET);
 		priv->gc.ngpio = 2;
 	} else if (intf_num == 1) {
-		if (mode.sci == CP210X_PIN_MODE_MODEM)
+		if (mode.sci == CP2105_PIN_MODE_MODEM)
 			return 0;
 
 		priv->config = config.sci_cfg;
-		priv->gpio_mode = (u8)((le16_to_cpu(config.gpio_mode) &
-						CP210X_SCI_GPIO_MODE_MASK) >>
-						CP210X_SCI_GPIO_MODE_OFFSET);
 		priv->gc.ngpio = 3;
 	} else {
 		return -ENODEV;
 	}
 
 	priv->serial = serial;
-	priv->gc.label = "cp210x";
-	priv->gc.request = cp210x_gpio_request;
+	priv->gc.label = "cp2105";
+	priv->gc.request = cp2105_gpio_request;
 	priv->gc.get_direction = cp210x_gpio_direction_get;
 	priv->gc.direction_input = cp210x_gpio_direction_input;
 	priv->gc.direction_output = cp210x_gpio_direction_output;
-	priv->gc.get = cp210x_gpio_get;
-	priv->gc.set = cp210x_gpio_set;
+	priv->gc.get = cp2105_gpio_get;
+	priv->gc.set = cp2105_gpio_set;
 	priv->gc.owner = THIS_MODULE;
 	priv->gc.dev = &serial->interface->dev;
 	priv->gc.base = -1;
