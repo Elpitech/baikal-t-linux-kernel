@@ -340,7 +340,8 @@ config WDT_MIPS_GIC
     default n
 
 config BE_BC
-    tristate "boot controller"
+    bool
+    default n
 
 config BAIKAL_EFUSE
     tristate "Baikal-T1 eFUSE driver"
