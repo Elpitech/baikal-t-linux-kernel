@@ -446,7 +446,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg-io-width = <4>;
-			compatible = "snps,dw-spi-boot";
+			compatible = "snps,dw-apb-ssi", "snps,dw-spi-boot";
 			reg = <0x1F040100 0xF00>;
 			clocks = <&boot_clk 0>;
 			clock-names = "bootclk";
