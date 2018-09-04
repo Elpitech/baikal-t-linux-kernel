@@ -450,6 +450,7 @@
 			reg = <0x1F040100 0xF00>;
 			clocks = <&boot_clk 0>;
 			clock-names = "bootclk";
+			boot-controller = <&bc>;
 			status = "disabled";
 			/* no interrupts */
 			/* no dma */
