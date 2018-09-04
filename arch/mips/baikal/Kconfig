@@ -330,5 +330,3 @@ config BE_BC
 
 config BAIKAL_EFUSE
     tristate "Baikal-T1 eFUSE driver"
-
-source "drivers/dma/baikal/Kconfig"
