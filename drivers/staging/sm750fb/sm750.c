@@ -1232,6 +1232,9 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	if (!sm750_dev)
 		return err;
 
+	if (smi_setup_dma(sm750_dev))
+		dev_err(&pdev->dev, "can't setup DMA!\n");
+
 	sm750_dev->fbinfo[0] = sm750_dev->fbinfo[1] = NULL;
 	sm750_dev->devid = pdev->device;
 	sm750_dev->revid = pdev->revision;
@@ -1287,6 +1290,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 
 release_fb:
 	sm750fb_frambuffer_release(sm750_dev);
+	smi_release_dma(sm750_dev);
 	sm750_remove_ddc(sm750_dev);
 	return err;
 }
@@ -1298,6 +1302,7 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 	sm750_dev = pci_get_drvdata(pdev);
 
 	sm750fb_frambuffer_release(sm750_dev);
+	smi_release_dma(sm750_dev);
 	sm750_remove_ddc(sm750_dev);
 	arch_phys_wc_del(sm750_dev->mtrr.vram);
 
