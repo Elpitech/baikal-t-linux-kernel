@@ -1162,6 +1162,9 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 		goto err_share;
 	}
 
+	if (smi_setup_dma(sm750_dev))
+		dev_err(&pdev->dev, "can't setup DMA!\n");
+
 	sm750_dev->fbinfo[0] = sm750_dev->fbinfo[1] = NULL;
 	sm750_dev->devid = pdev->device;
 	sm750_dev->revid = pdev->revision;
@@ -1276,6 +1279,7 @@ err_info0_set:
 err_info0_alloc:
 	sm750_remove_ddc(sm750_dev);
 err_map:
+	smi_release_dma(sm750_dev);
 	kfree(sm750_dev);
 err_share:
 err_enable:
@@ -1308,6 +1312,7 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 	iounmap(sm750_dev->pvReg);
 	iounmap(sm750_dev->pvMem);
 	kfree(g_settings);
+	smi_release_dma(sm750_dev);
 	kfree(sm750_dev);
 	pci_set_drvdata(pdev, NULL);
 }
