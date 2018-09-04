@@ -420,6 +420,7 @@ static int probe(struct platform_device *pdev)
 {
     struct dw_boot_spi *dws;
     struct resource *mem;
+    struct device_node *bc_np;
     int ret;
 
     /* alloc dws */
@@ -459,18 +460,38 @@ static int probe(struct platform_device *pdev)
     device_property_read_u32(&pdev->dev, "num-cs", &dws->num_cs);
     dws->fifo_len = fifo_len(dws);
 
+    /* Enable the DW SPI controller interface */
+    bc_np = of_parse_phandle(pdev->dev.of_node, "boot-controller", 0);
+    if (!bc_np) {
+        ret = -EINVAL;
+        dev_err(&pdev->dev, "boot-controller of-node missing\n");
+        goto out;
+    }
+    dws->bc = of_find_be_bc_device_by_node(bc_np);
+    if (!dws->bc) {
+        ret = -EINVAL;
+        dev_err(&pdev->dev, "BE BC search failed\n");
+	goto out;
+    }
+    be_bc_enable_spi(dws->bc);
+
     /* use parameters to init spi */
     init(dws);
 
     /* add host */
     ret = add_host(&pdev->dev, dws);
-    if (ret){
-        clk_disable_unprepare(dws->clk);
-        return ret;
-    }
+    if (ret)
+        goto dis_be_bc;
 
     platform_set_drvdata(pdev, dws);
     return 0;
+
+dis_be_bc:
+    be_bc_disable_spi(dws->bc);
+
+out:
+    clk_disable_unprepare(dws->clk);
+    return ret;
 }
 
 static int remove(struct platform_device *pdev)
@@ -478,6 +499,7 @@ static int remove(struct platform_device *pdev)
     struct dw_boot_spi *dws = platform_get_drvdata(pdev);
 
     clk_disable_unprepare(dws->clk);
+    be_bc_disable_spi(dws->bc);
 
     return 0;
 }

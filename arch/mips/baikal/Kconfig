@@ -324,4 +324,5 @@ config EFUSE
     default n
 
 config BE_BC
-    tristate "boot controller"
+    bool
+    default n

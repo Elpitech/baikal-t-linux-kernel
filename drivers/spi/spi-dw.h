@@ -4,6 +4,7 @@
 #include <linux/io.h>
 #include <linux/scatterlist.h>
 #include <linux/gpio.h>
+#include <asm/mach-baikal/bc.h>
 
 /* Register offsets */
 #define DW_SPI_CTRL0			0x00
@@ -145,6 +146,7 @@ struct dw_boot_spi {
 	void __iomem *regs;
 	unsigned long paddr;
 
+	struct be_bc	*bc;	/* BE Boot controller to enable the interface */
 	u32	fifo_len;       /* depth of the FIFO buffer */
 	u32	max_freq;       /* max bus freq supported */
 	u32	reg_io_width;   /* DR I/O width in bytes */
