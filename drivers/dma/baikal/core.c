@@ -67,7 +67,8 @@ struct baikal_dma_desc *baikal_dma_desc_produce(phyaddr src, phyaddr dst, uint32
 	return desc;
 }
 
-static struct baikal_dma_desc *baikal_dma_chan_desc_get(struct baikal_dma_chan *edma_chan)
+__maybe_unused static struct baikal_dma_desc *
+baikal_dma_chan_desc_get(struct baikal_dma_chan *edma_chan)
 {
 	struct baikal_dma_desc *desc, *_desc;
 	struct baikal_dma_desc *ret = NULL;
@@ -108,7 +109,8 @@ static void baikal_dma_chan_sync_desc_for_cpu(struct baikal_dma_chan *edma_chan,
  * Move a descriptor, including any children, to the free list.
  * `desc' must not be on any lists.
  */
-static void baikal_dma_chan_desc_put(struct baikal_dma_chan *edma_chan, struct baikal_dma_desc *desc)
+__maybe_unused static void
+baikal_dma_chan_desc_put(struct baikal_dma_chan *edma_chan, struct baikal_dma_desc *desc)
 {
 	unsigned long flags;
 
@@ -554,7 +556,7 @@ void baikal_dma_set_ll(struct baikal_dma *dmac, baikal_dma_dirc dirc, uint8_t ch
 
 	dma_writel(dmac, ctx_sel.dword, sel.dword);
 
-	channel_writel(dmac, chan, el_ptr_lo, addr);
+	channel_writel(dmac, chan, el_ptr_lo, (uint32_t)addr);
 	channel_writel(dmac, chan, el_ptr_hi, 0x0);
 }
 
@@ -1301,7 +1303,8 @@ static baikal_dmareturn_t baikal_dma_update_ll_elements(struct baikal_dma *dmac,
  * for external multi block read/write APIs.
  *
  */
-static baikal_dmareturn_t baikal_dma_prepare_multi_block_transfer(struct baikal_dma *dmac, struct baikal_dma_chan *edma_chan)
+__maybe_unused static baikal_dmareturn_t
+baikal_dma_prepare_multi_block_transfer(struct baikal_dma *dmac, struct baikal_dma_chan *edma_chan)
 {
 	uint32_t status;
 	baikal_dmareturn_t ret;
@@ -1692,7 +1695,7 @@ int baikal_dma_probe(struct baikal_dma_chip *chip, struct baikal_dma_platform_da
 
 		list_add(&edma_chan->chan.device_node, &dmac->dma.channels);
 
-		edma_chan->llv_addr = KSEG1ADDR((uint32_t*)kmalloc(sizeof(struct baikal_dma_lli) * MAX_LLELEMENT_NUM, GFP_KERNEL | GFP_DMA));
+		edma_chan->llv_addr = (uint32_t*)KSEG1ADDR(kmalloc(sizeof(struct baikal_dma_lli) * MAX_LLELEMENT_NUM, GFP_KERNEL | GFP_DMA));
 		memset(edma_chan->llp_addr, 0, sizeof(struct baikal_dma_lli) * MAX_LLELEMENT_NUM);
 		edma_chan->llp_addr = (uint32_t*)CPHYSADDR(edma_chan->llv_addr);
 

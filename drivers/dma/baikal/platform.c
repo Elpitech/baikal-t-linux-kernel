@@ -26,18 +26,17 @@
 #include "internal.h"
 
 #ifdef CONFIG_MIPS_BAIKAL
-extern struct baikal_dma_chip *baikal_dma_chip;
+struct baikal_dma_chip *baikal_dma_chip;
 #endif /* CONFIG_MIPS_BAIKAL */
 
 #define DRV_NAME	"baikal-edma"
 
 #ifdef CONFIG_OF
-	static struct baikal_dma_platform_data *
+static struct baikal_dma_platform_data *
 baikal_dma_parse_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct baikal_dma_platform_data *pdata;
-	u32 tmp;
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing DT data\n");
@@ -51,7 +50,7 @@ baikal_dma_parse_dt(struct platform_device *pdev)
 	return pdata;
 }
 #else
-	static inline struct baikal_dma_platform_data *
+static inline struct baikal_dma_platform_data *
 baikal_dma_parse_dt(struct platform_device *pdev)
 {
 	return NULL;

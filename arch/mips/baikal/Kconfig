@@ -321,5 +321,3 @@ config EFUSE
 
 config BE_BC
     tristate "boot controller"
-
-source "drivers/dma/baikal/Kconfig"
