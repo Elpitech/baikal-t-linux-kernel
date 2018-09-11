@@ -16,6 +16,11 @@ if DRM_SMIFB
 
 comment "Additional sm750/sm768 features"
 
+config DRM_SMIFB_EDMA
+	bool "Use DMA for transfers from RAM to FB"
+	depends on BAIKAL_EDMA
+	default y if MIPS_BAIKAL
+
 config DRM_SMIFB_SII9022_HDMI
 	bool "Enable SII9022 HDMI transmitter support for sm750"
 	default n
