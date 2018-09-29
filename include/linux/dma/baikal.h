@@ -20,6 +20,7 @@
 /**
  * struct baikal_dma_chip - representation of Baikal SoC PCIe eDMA controller hardware
  * @dev:		struct device of the DMA controller
+ * @irq_num:		number of irq lines
  * @irq:		irq lines
  * @regs:		memory mapped I/O space
  * @clk:		hclk clock
@@ -27,6 +28,7 @@
  */
 struct baikal_dma_chip {
 	struct device		*dev;
+	int			irq_num;
 	struct resource		*irq[BAIKAL_EDMA_TOTAL_CHANNELS];
 	void __iomem		*regs;
 	struct clk			*clk;

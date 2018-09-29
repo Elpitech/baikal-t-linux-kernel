@@ -61,7 +61,7 @@ static int edma_probe(struct platform_device *pdev)
 {
 	struct baikal_dma_chip *chip;
 	struct device *dev = &pdev->dev;
-	struct resource *mem;
+	struct resource *mem, *irq;
 	struct baikal_dma_platform_data *pdata;
 	int err;
 	int i;
@@ -86,7 +86,17 @@ static int edma_probe(struct platform_device *pdev)
 	pdata->wr_channels = BAIKAL_EDMA_WR_CHANNELS;
 	pdata->rd_channels = BAIKAL_EDMA_RD_CHANNELS;
 
-	for (i = 0; i < BAIKAL_EDMA_TOTAL_CHANNELS; i++) {
+	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!irq) {
+		dev_err(&pdev->dev, "No IRQ resource found.\n");
+		return -EINVAL;
+	} else if (!strncmp("eDMA-Tx-Rx", irq->name, 11)) {
+		chip->irq_num = 1;
+	} else {
+		chip->irq_num = BAIKAL_EDMA_TOTAL_CHANNELS;
+	}
+
+	for (i = 0; i < chip->irq_num; i++) {
 		if (!(chip->irq[i] = platform_get_resource(pdev, IORESOURCE_IRQ, i))) {
 			dev_err(&pdev->dev, "There is no IRQ resource specified for channel %d.\n", i);
 			return -EINVAL;
