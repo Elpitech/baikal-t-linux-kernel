@@ -1402,26 +1402,18 @@ static inline void baikal_dma_interrupt_fast_irq_clear(struct baikal_dma *dmac, 
 }
 
 /**
- * Interrupt service routine for DMA transfer.
+ * Common interrupt service routine for DMA transfer.
  */
-
-static irqreturn_t baikal_dma_interrupt(int irq, void *dev_id)
+static void baikal_dma_interrupt(struct baikal_dma *dmac, struct baikal_dma_chan *edma_chan)
 {
-	uint8_t chan;
 	uint32_t id;
 	uint32_t mask;
-	struct baikal_dma *dmac;
-	struct baikal_dma_chan *edma_chan;
 	baikal_dma_dirc dirc;
 	baikal_dma_irq_clear_reg irq_clr;
 	bool invoke_callback;
 	uint32_t time1, time2;
 
 	time1 = read_c0_count();
-
-	dmac = dev_id;	
-	chan = irq - dmac->chan[0].irq;
-	edma_chan = &dmac->chan[chan];
 
 	/**
 	 * The order is strict.
@@ -1492,6 +1484,46 @@ static irqreturn_t baikal_dma_interrupt(int irq, void *dev_id)
 	else
 		time2 = 0xFFFFFFFF - (time1 - time2) + 1;
 	edma_chan->time += time2;
+}
+
+/**
+ * Interrupt service routine for DMA transfer executed for per-channel config.
+ */
+static irqreturn_t baikal_dma_interrupt_vec(int irq, void *dev_id)
+{
+	struct baikal_dma *dmac;
+	struct baikal_dma_chan *edma_chan;
+	uint8_t chan;
+
+	dmac = dev_id;
+	chan = irq - dmac->chan[0].irq;
+	edma_chan = &dmac->chan[chan];
+
+	baikal_dma_interrupt(dmac, edma_chan);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * Interrupt service routine for DMA transfer executed for common status config.
+ */
+static irqreturn_t baikal_dma_interrupt_com(int irq, void *dev_id)
+{
+	struct baikal_dma *dmac;
+	struct baikal_dma_chan *edma_chan;
+	baikal_dma_dirc dirc;
+	baikal_dma_irq_type type;
+	uint8_t chan;
+
+	dmac = dev_id;
+
+	while (baikal_dma_query_irq_src(dmac, &dirc, &chan, &type)) {
+		/* consider channels 0...3 as write channels, 4...7 as read channels (dirc = 1) */
+		chan += dirc*BAIKAL_EDMA_WR_CHANNELS;
+		edma_chan = &dmac->chan[chan];
+
+		baikal_dma_interrupt(dmac, edma_chan);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -1650,6 +1682,7 @@ int baikal_dma_probe(struct baikal_dma_chip *chip, struct baikal_dma_platform_da
 	struct baikal_dma	*dmac;
 	int					err;
 	int					i;
+	irq_handler_t		isr;
 
 	dmac = devm_kzalloc(chip->dev, sizeof(*dmac), GFP_KERNEL);
 	if (!dmac)
@@ -1719,10 +1752,19 @@ int baikal_dma_probe(struct baikal_dma_chip *chip, struct baikal_dma_platform_da
 		edma_chan->time = 0;
 		edma_chan->nollp = TRUE;
 		edma_chan->block_size = MIN_BLOCK_SIZE;
-		edma_chan->irq = chip->irq[i]->start;
+		if (chip->irq_num == 1)
+			edma_chan->irq = chip->irq[0]->start;
+		else
+			edma_chan->irq = chip->irq[i]->start;
+	}
 
-		err = request_irq(edma_chan->irq, baikal_dma_interrupt, 0,
-				chip->irq[i]->name, dmac);
+	if (chip->irq_num == 1)
+		isr = baikal_dma_interrupt_com;
+	else
+		isr = baikal_dma_interrupt_vec;
+
+	for (i = 0; i < chip->irq_num; i++) {
+		err = request_irq(chip->irq[i]->start, isr, 0, chip->irq[i]->name, dmac);
 		if (err)
 			goto err_dma_register;
 	}
@@ -1754,7 +1796,7 @@ int baikal_dma_probe(struct baikal_dma_chip *chip, struct baikal_dma_platform_da
 	return 0;
 
 err_dma_register:
-	for (i = 0; i < dmac->dma.chancnt; i++) {
+	for (i--; i >= 0; i--) {
 		free_irq(chip->irq[i]->start, dmac);
 	}
 
@@ -1773,7 +1815,7 @@ int baikal_dma_remove(struct baikal_dma_chip *chip)
 	baikal_dma_off(dmac);
 	dma_async_device_unregister(&dmac->dma);
 
-	for (i = 0; i < dmac->dma.chancnt; i++) {
+	for (i = 0; i < chip->irq_num; i++) {
 		free_irq(chip->irq[i]->start, dmac);
 	}
 
