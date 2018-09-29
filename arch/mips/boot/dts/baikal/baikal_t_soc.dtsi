@@ -172,6 +172,15 @@
 			status = "disabled";
 		};
 
+		edma: edma@1F053000 {
+			compatible = "be,baikal-edma";
+			reg = <0x1F053000 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 94 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "eDMA-Tx-Rx";
+			upstream = <&pci>;
+		};
+
 		xgmac: eth0@1F054000 {
 			compatible = "be,baikal-xgbe";
 			reg = <0x1F054000 0x4000>,
