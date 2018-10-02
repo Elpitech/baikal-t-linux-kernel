@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/regmap.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
@@ -32,6 +31,7 @@
 #define MAX310X_NAME			"max310x"
 #define MAX310X_MAJOR			204
 #define MAX310X_MINOR			209
+#define MAX310X_DEV_NUM			16
 
 /* MAX310X register definitions */
 #define MAX310X_RHR_REG			(0x00) /* RX FIFO */
@@ -240,6 +240,8 @@
 /* Misc definitions */
 #define MAX310X_FIFO_SIZE		(128)
 #define MAX310x_REV_MASK		(0xfc)
+#define MAX310x_CYCLE_SIZE		(2)
+#define MAX310x_WRITE_FLAG		(0x80)
 
 /* MAX3107 specific */
 #define MAX3107_REV_ID			(0xa0)
@@ -249,6 +251,7 @@
 
 /* MAX14830 specific */
 #define MAX14830_BRGCFG_CLKDIS_BIT	(1 << 6) /* Clock Disable */
+#define MAX14830_REV_MASK		(0xf8)
 #define MAX14830_REV_ID			(0xb0)
 
 struct max310x_devtype {
@@ -265,9 +268,8 @@ struct max310x_one {
 };
 
 struct max310x_port {
-	struct uart_driver	uart;
 	struct max310x_devtype	*devtype;
-	struct regmap		*regmap;
+	struct spi_device	*spi;
 	struct mutex		mutex;
 	struct clk		*clk;
 #ifdef CONFIG_GPIOLIB
@@ -276,40 +278,104 @@ struct max310x_port {
 	struct max310x_one	p[0];
 };
 
-static u8 max310x_port_read(struct uart_port *port, u8 reg)
+struct uart_driver max310x_uart_driver =
 {
-	struct max310x_port *s = dev_get_drvdata(port->dev);
-	unsigned int val = 0;
+	.owner		= THIS_MODULE,
+	.dev_name	= "ttyMAX",
+	.major		= MAX310X_MAJOR,
+	.minor		= MAX310X_MINOR,
+	.nr		= MAX310X_DEV_NUM
+};
 
-	regmap_read(s->regmap, port->iobase + reg, &val);
+static int max310x_spi_device_counter = 0;
 
-	return val;
+static int max310x_uart_ports[MAX310X_DEV_NUM];
+
+static DEFINE_MUTEX(max310x_lock); /* race on probe */
+
+/* SPI Burst Access isn't supported */
+static int max310x_spi_message(struct spi_device *spi, u8 *rx, u8 *tx)
+{
+	struct spi_message msg;
+	struct spi_transfer t;
+	int status;
+
+	memset(&t, 0, sizeof(t));
+	t.rx_buf = rx;
+	t.tx_buf = tx;
+	t.len = MAX310x_CYCLE_SIZE;
+
+	spi_message_init(&msg);
+	spi_message_add_tail(&t, &msg);
+
+	status = spi_sync(spi, &msg);
+	if (status < 0) {
+		dev_err(&spi->dev, "SPI syncing failed %d", status);
+	}
+
+	return status;
 }
 
-static void max310x_port_write(struct uart_port *port, u8 reg, u8 val)
+static u8 max310x_reg_read(struct spi_device *spi, u8 reg)
 {
-	struct max310x_port *s = dev_get_drvdata(port->dev);
+	u8 rx_buf[MAX310x_CYCLE_SIZE], tx_buf[MAX310x_CYCLE_SIZE];
 
-	regmap_write(s->regmap, port->iobase + reg, val);
+	memset(rx_buf, 0, MAX310x_CYCLE_SIZE);
+	memset(tx_buf, 0, MAX310x_CYCLE_SIZE);
+
+	tx_buf[0] = reg;
+	max310x_spi_message(spi, rx_buf, tx_buf);
+
+	return rx_buf[1];
 }
 
-static void max310x_port_update(struct uart_port *port, u8 reg, u8 mask, u8 val)
+static void max310x_reg_write(struct spi_device *spi, u8 reg, u8 val)
+{
+	u8 tx_buf[MAX310x_CYCLE_SIZE];
+
+	memset(tx_buf, 0, MAX310x_CYCLE_SIZE);
+
+	tx_buf[0] = reg | MAX310x_WRITE_FLAG;
+	tx_buf[1] = val;
+	max310x_spi_message(spi, NULL, tx_buf);
+}
+
+static void max310x_reg_update_bits(struct spi_device *spi, u8 reg, u8 mask, u8 val)
+{
+	u8 orig;
+
+	orig = max310x_reg_read(spi, reg);
+	max310x_reg_write(spi, reg, (orig & ~mask) | (val & mask));
+}
+
+static inline u8 max310x_port_read(struct uart_port *port, u8 reg)
 {
 	struct max310x_port *s = dev_get_drvdata(port->dev);
 
-	regmap_update_bits(s->regmap, port->iobase + reg, mask, val);
+	return max310x_reg_read(s->spi, port->iobase + reg);
+}
+
+static inline void max310x_port_write(struct uart_port *port, u8 reg, u8 val)
+{
+	struct max310x_port *s = dev_get_drvdata(port->dev);
+
+	max310x_reg_write(s->spi, port->iobase + reg, val);
+}
+
+static inline void max310x_port_update(struct uart_port *port, u8 reg,
+					u8 mask, u8 val)
+{
+	struct max310x_port *s = dev_get_drvdata(port->dev);
+
+	max310x_reg_update_bits(s->spi, port->iobase + reg, mask, val);
 }
 
 static int max3107_detect(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
 	unsigned int val = 0;
-	int ret;
 
-	ret = regmap_read(s->regmap, MAX310X_REVID_REG, &val);
-	if (ret)
-		return ret;
-
+	val = max310x_reg_read(s->spi, MAX310X_REVID_REG);
 	if (((val & MAX310x_REV_MASK) != MAX3107_REV_ID)) {
 		dev_err(dev,
 			"%s ID 0x%02x does not match\n", s->devtype->name, val);
@@ -323,15 +389,11 @@ static int max3108_detect(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
 	unsigned int val = 0;
-	int ret;
 
 	/* MAX3108 have not REV ID register, we just check default value
 	 * from clocksource register to make sure everything works.
 	 */
-	ret = regmap_read(s->regmap, MAX310X_CLKSRC_REG, &val);
-	if (ret)
-		return ret;
-
+	val = max310x_reg_read(s->spi, MAX310X_CLKSRC_REG);
 	if (val != (MAX310X_CLKSRC_EXTCLK_BIT | MAX310X_CLKSRC_PLLBYP_BIT)) {
 		dev_err(dev, "%s not present\n", s->devtype->name);
 		return -ENODEV;
@@ -344,15 +406,11 @@ static int max3109_detect(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
 	unsigned int val = 0;
-	int ret;
 
-	ret = regmap_write(s->regmap, MAX310X_GLOBALCMD_REG,
-			   MAX310X_EXTREG_ENBL);
-	if (ret)
-		return ret;
+	max310x_reg_write(s->spi, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_ENBL);
 
-	regmap_read(s->regmap, MAX310X_REVID_EXTREG, &val);
-	regmap_write(s->regmap, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
+	val = max310x_reg_read(s->spi, MAX310X_REVID_EXTREG);
+	max310x_reg_write(s->spi, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
 	if (((val & MAX310x_REV_MASK) != MAX3109_REV_ID)) {
 		dev_err(dev,
 			"%s ID 0x%02x does not match\n", s->devtype->name, val);
@@ -375,16 +433,12 @@ static int max14830_detect(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
 	unsigned int val = 0;
-	int ret;
 
-	ret = regmap_write(s->regmap, MAX310X_GLOBALCMD_REG,
-			   MAX310X_EXTREG_ENBL);
-	if (ret)
-		return ret;
+	max310x_reg_write(s->spi, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_ENBL);
 	
-	regmap_read(s->regmap, MAX310X_REVID_EXTREG, &val);
-	regmap_write(s->regmap, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
-	if (((val & MAX310x_REV_MASK) != MAX14830_REV_ID)) {
+	val = max310x_reg_read(s->spi, MAX310X_REVID_EXTREG);
+	max310x_reg_write(s->spi, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
+	if (((val & MAX14830_REV_MASK) != MAX14830_REV_ID)) {
 		dev_err(dev,
 			"%s ID 0x%02x does not match\n", s->devtype->name, val);
 		return -ENODEV;
@@ -429,60 +483,6 @@ static const struct max310x_devtype max14830_devtype = {
 	.detect	= max14830_detect,
 	.power	= max14830_power,
 };
-
-static bool max310x_reg_writeable(struct device *dev, unsigned int reg)
-{
-	switch (reg & 0x1f) {
-	case MAX310X_IRQSTS_REG:
-	case MAX310X_LSR_IRQSTS_REG:
-	case MAX310X_SPCHR_IRQSTS_REG:
-	case MAX310X_STS_IRQSTS_REG:
-	case MAX310X_TXFIFOLVL_REG:
-	case MAX310X_RXFIFOLVL_REG:
-		return false;
-	default:
-		break;
-	}
-
-	return true;
-}
-
-static bool max310x_reg_volatile(struct device *dev, unsigned int reg)
-{
-	switch (reg & 0x1f) {
-	case MAX310X_RHR_REG:
-	case MAX310X_IRQSTS_REG:
-	case MAX310X_LSR_IRQSTS_REG:
-	case MAX310X_SPCHR_IRQSTS_REG:
-	case MAX310X_STS_IRQSTS_REG:
-	case MAX310X_TXFIFOLVL_REG:
-	case MAX310X_RXFIFOLVL_REG:
-	case MAX310X_GPIODATA_REG:
-	case MAX310X_BRGDIVLSB_REG:
-	case MAX310X_REG_05:
-	case MAX310X_REG_1F:
-		return true;
-	default:
-		break;
-	}
-
-	return false;
-}
-
-static bool max310x_reg_precious(struct device *dev, unsigned int reg)
-{
-	switch (reg & 0x1f) {
-	case MAX310X_RHR_REG:
-	case MAX310X_IRQSTS_REG:
-	case MAX310X_SPCHR_IRQSTS_REG:
-	case MAX310X_STS_IRQSTS_REG:
-		return true;
-	default:
-		break;
-	}
-
-	return false;
-}
 
 static int max310x_set_baud(struct uart_port *port, int baud)
 {
@@ -576,11 +576,11 @@ static int max310x_set_ref_clk(struct max310x_port *s, unsigned long freq,
 	/* Configure PLL */
 	if (pllcfg) {
 		clksrc |= MAX310X_CLKSRC_PLL_BIT;
-		regmap_write(s->regmap, MAX310X_PLLCFG_REG, pllcfg);
+		max310x_reg_write(s->spi, MAX310X_PLLCFG_REG, pllcfg);
 	} else
 		clksrc |= MAX310X_CLKSRC_PLLBYP_BIT;
 
-	regmap_write(s->regmap, MAX310X_CLKSRC_REG, clksrc);
+	max310x_reg_write(s->spi, MAX310X_CLKSRC_REG, clksrc);
 
 	/* Wait for crystal */
 	if (pllcfg && xtal)
@@ -715,13 +715,12 @@ static irqreturn_t max310x_ist(int irq, void *dev_id)
 {
 	struct max310x_port *s = (struct max310x_port *)dev_id;
 
-	if (s->uart.nr > 1) {
+	if (s->devtype->nr > 1) {
 		do {
 			unsigned int val = ~0;
 
-			WARN_ON_ONCE(regmap_read(s->regmap,
-						 MAX310X_GLOBALIRQ_REG, &val));
-			val = ((1 << s->uart.nr) - 1) & ~val;
+			val = max310x_reg_read(s->spi, MAX310X_GLOBALIRQ_REG);
+			val = ((1 << s->devtype->nr) - 1) & ~val;
 			if (!val)
 				break;
 			max310x_port_irq(s, fls(val) - 1);
@@ -914,12 +913,14 @@ static int max310x_startup(struct uart_port *port)
 {
 	struct max310x_port *s = dev_get_drvdata(port->dev);
 	unsigned int val;
+	int ret;
 
 	s->devtype->power(port, 1);
 
-	/* Configure MODE1 register */
-	max310x_port_update(port, MAX310X_MODE1_REG,
-			    MAX310X_MODE1_TRNSCVCTRL_BIT, 0);
+	/* Configure mode1/mode2 to have rs485/rs232 enabled */
+	ret = max310x_rs485_config(port, &port->rs485);
+	if (ret != 0)
+		return ret;
 
 	/* Configure MODE2 register & Reset FIFOs*/
 	val = MAX310X_MODE2_RXEMPTINV_BIT | MAX310X_MODE2_FIFORST_BIT;
@@ -1007,10 +1008,12 @@ static const struct uart_ops max310x_ops = {
 static int __maybe_unused max310x_suspend(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
-	int i;
+	int i, nr;
 
-	for (i = 0; i < s->uart.nr; i++) {
-		uart_suspend_port(&s->uart, &s->p[i].port);
+	nr = s->devtype->nr;
+
+	for (i = 0; i < nr; i++) {
+		uart_suspend_port(&max310x_uart_driver, &s->p[i].port);
 		s->devtype->power(&s->p[i].port, 0);
 	}
 
@@ -1020,11 +1023,13 @@ static int __maybe_unused max310x_suspend(struct device *dev)
 static int __maybe_unused max310x_resume(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
-	int i;
+	int i, nr;
 
-	for (i = 0; i < s->uart.nr; i++) {
+	nr = s->devtype->nr;
+
+	for (i = 0; i < nr; i++) {
 		s->devtype->power(&s->p[i].port, 1);
-		uart_resume_port(&s->uart, &s->p[i].port);
+		uart_resume_port(&max310x_uart_driver, &s->p[i].port);
 	}
 
 	return 0;
@@ -1078,22 +1083,85 @@ static int max310x_gpio_direction_output(struct gpio_chip *chip,
 }
 #endif
 
-static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
-			 struct regmap *regmap, int irq, unsigned long flags)
+static inline int max310x_get_uart_port_idx( void )
 {
-	int i, ret, fmin, fmax, freq, uartclk;
+	int i;
+	for (i = 0; i < MAX310X_DEV_NUM; i++)
+	{
+		if (0 == max310x_uart_ports[i])
+		{
+			max310x_uart_ports[i] = 1;
+			return i;
+		}
+	}
+	return -1;
+}
+
+static inline void max310x_free_uart_port_idx( int idx )
+{
+	max310x_uart_ports[idx] = 0;
+}
+
+static void max310x_init_rs485(struct uart_port *port, struct device_node *node,
+			      int pnum)
+{
+	struct serial_rs485 *rs485conf = &port->rs485;
+	struct device_node *child;
+	u32 rs485_delay[2];
+	const __be32 *of_pnum_be;
+	int len, of_pnum;
+
+	/* Nothing we can do if there is no fdt node */
+	if (!node)
+		return;
+
+	/* Scan subnodes looking for the port with passed id */
+	for_each_available_child_of_node(node, child) {
+		of_pnum = -1;
+		/* Get port number from 'reg' attribute */
+		of_pnum_be = of_get_property(child, "reg", &len);
+		if (of_pnum_be && (len == sizeof(*of_pnum_be)))
+			of_pnum = be32_to_cpup(of_pnum_be);
+		/* Stop looping if the node is found */
+		if (of_pnum == pnum)
+			break;
+	}
+
+	/* It's rs232 if port hasn't been found */
+	if (of_pnum != pnum)
+		return;
+
+	/* Set rs485 properties */
+	/* WARNING! This delay isn't of milliseconds, but of bits */
+	if (of_property_read_u32_array(child, "rs485-rts-delay",
+				       rs485_delay, 2) == 0) {
+		rs485conf->delay_rts_before_send = clamp(rs485_delay[0], 0U, 15U);
+		rs485conf->delay_rts_after_send = clamp(rs485_delay[1], 0U, 15U);
+	}
+
+	if (of_property_read_bool(child, "rs485-rx-during-tx"))
+		rs485conf->flags |= SER_RS485_RX_DURING_TX;
+
+	if (of_property_read_bool(child, "linux,rs485-enabled-at-boot-time"))
+		rs485conf->flags |= SER_RS485_ENABLED;
+}
+
+static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
+			 int irq, unsigned long flags)
+{
+	int i, ret, fmin, fmax, freq, uartclk, uart_port_idx;
 	struct clk *clk_osc, *clk_xtal;
 	struct max310x_port *s;
 	bool xtal = false;
 
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
+	mutex_lock(&max310x_lock);
 
 	/* Alloc port structure */
 	s = devm_kzalloc(dev, sizeof(*s) +
 			 sizeof(struct max310x_one) * devtype->nr, GFP_KERNEL);
 	if (!s) {
 		dev_err(dev, "Error allocating port structure\n");
+		mutex_unlock(&max310x_lock);
 		return -ENOMEM;
 	}
 
@@ -1110,15 +1178,19 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		xtal = true;
 	} else if (PTR_ERR(clk_osc) == -EPROBE_DEFER ||
 		   PTR_ERR(clk_xtal) == -EPROBE_DEFER) {
+		mutex_unlock(&max310x_lock);
 		return -EPROBE_DEFER;
 	} else {
 		dev_err(dev, "Cannot get clock\n");
+		mutex_unlock(&max310x_lock);
 		return -EINVAL;
 	}
 
 	ret = clk_prepare_enable(s->clk);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&max310x_lock);
 		return ret;
+	}
 
 	freq = clk_get_rate(s->clk);
 	/* Check frequency limits */
@@ -1127,7 +1199,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		goto out_clk;
 	}
 
-	s->regmap = regmap;
+	s->spi = to_spi_device(dev);
 	s->devtype = devtype;
 	dev_set_drvdata(dev, s);
 
@@ -1140,35 +1212,32 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		unsigned int offs = i << 5;
 
 		/* Reset port */
-		regmap_write(s->regmap, MAX310X_MODE2_REG + offs,
-			     MAX310X_MODE2_RST_BIT);
+		max310x_reg_write(s->spi, MAX310X_MODE2_REG + offs,
+				  MAX310X_MODE2_RST_BIT);
 		/* Clear port reset */
-		regmap_write(s->regmap, MAX310X_MODE2_REG + offs, 0);
+		max310x_reg_write(s->spi, MAX310X_MODE2_REG + offs, 0);
 
 		/* Wait for port startup */
 		do {
-			regmap_read(s->regmap,
-				    MAX310X_BRGDIVLSB_REG + offs, &ret);
+			ret = max310x_reg_read(s->spi,
+					       MAX310X_BRGDIVLSB_REG + offs);
 		} while (ret != 0x01);
 
-		regmap_update_bits(s->regmap, MAX310X_MODE1_REG + offs,
-				   MAX310X_MODE1_AUTOSLEEP_BIT,
-				   MAX310X_MODE1_AUTOSLEEP_BIT);
+		max310x_reg_update_bits(s->spi, MAX310X_MODE1_REG + offs,
+					MAX310X_MODE1_AUTOSLEEP_BIT,
+					MAX310X_MODE1_AUTOSLEEP_BIT);
 	}
 
 	uartclk = max310x_set_ref_clk(s, freq, xtal);
 	dev_dbg(dev, "Reference clock set to %i Hz\n", uartclk);
 
-	/* Register UART driver */
-	s->uart.owner		= THIS_MODULE;
-	s->uart.dev_name	= "ttyMAX";
-	s->uart.major		= MAX310X_MAJOR;
-	s->uart.minor		= MAX310X_MINOR;
-	s->uart.nr		= devtype->nr;
-	ret = uart_register_driver(&s->uart);
-	if (ret) {
-		dev_err(dev, "Registering UART driver failed\n");
-		goto out_clk;
+	/* Register UART driver only once! */
+	if (!max310x_spi_device_counter) {
+		ret = uart_register_driver(&max310x_uart_driver);
+		if (ret) {
+			dev_err(dev, "Registering UART driver failed, drv new test\n");
+			goto out_clk;
+		}
 	}
 
 #ifdef CONFIG_GPIOLIB
@@ -1192,7 +1261,14 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 
 	for (i = 0; i < devtype->nr; i++) {
 		/* Initialize port data */
-		s->p[i].port.line	= i;
+		uart_port_idx = max310x_get_uart_port_idx();
+		if (-1 == uart_port_idx)
+		{
+			dev_err(dev, "Unable register one port, range error\n");
+			ret = -ERANGE;
+			goto out_uart;
+		}
+		s->p[i].port.line	= uart_port_idx;
 		s->p[i].port.dev	= dev;
 		s->p[i].port.irq	= irq;
 		s->p[i].port.type	= PORT_MAX310X;
@@ -1216,8 +1292,18 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		INIT_WORK(&s->p[i].tx_work, max310x_wq_proc);
 		/* Initialize queue for changing mode */
 		INIT_WORK(&s->p[i].md_work, max310x_md_proc);
+		/* Initialize RS485 fields */
+		max310x_init_rs485(&s->p[i].port, dev_of_node(dev), i);
 		/* Register port */
-		uart_add_one_port(&s->uart, &s->p[i].port);
+		ret = uart_add_one_port(&max310x_uart_driver, &s->p[i].port);
+		if (ret)
+		{
+			dev_err(dev, "Unable register one port\n");
+			max310x_free_uart_port_idx(uart_port_idx);
+			mutex_destroy(&s->mutex);
+			mutex_unlock(&max310x_lock);
+			return ret;
+		}
 		/* Go to suspend mode */
 		devtype->power(&s->p[i].port, 0);
 	}
@@ -1225,8 +1311,11 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 	/* Setup interrupt */
 	ret = devm_request_threaded_irq(dev, irq, NULL, max310x_ist,
 					IRQF_ONESHOT | flags, dev_name(dev), s);
-	if (!ret)
+	if (!ret) {
+		max310x_spi_device_counter++;
+		mutex_unlock(&max310x_lock);
 		return 0;
+	}
 
 	dev_err(dev, "Unable to reguest IRQ %i\n", irq);
 
@@ -1237,10 +1326,15 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 
 out_uart:
 #endif
-	uart_unregister_driver(&s->uart);
+	/* Unregister only once! */
+	if (!max310x_spi_device_counter) {
+		uart_unregister_driver(&max310x_uart_driver);
+	}
 
 out_clk:
 	clk_disable_unprepare(s->clk);
+
+	mutex_unlock(&max310x_lock);
 
 	return ret;
 }
@@ -1250,20 +1344,33 @@ static int max310x_remove(struct device *dev)
 	struct max310x_port *s = dev_get_drvdata(dev);
 	int i;
 
+	mutex_lock(&max310x_lock);
+
 #ifdef CONFIG_GPIOLIB
 	gpiochip_remove(&s->gpio);
 #endif
 
-	for (i = 0; i < s->uart.nr; i++) {
+	for (i = 0; i < s->devtype->nr; i++) {
+		max310x_free_uart_port_idx( s->p[i].port.line );
 		cancel_work_sync(&s->p[i].tx_work);
 		cancel_work_sync(&s->p[i].md_work);
-		uart_remove_one_port(&s->uart, &s->p[i].port);
+		uart_remove_one_port(&max310x_uart_driver, &s->p[i].port);
 		s->devtype->power(&s->p[i].port, 0);
 	}
 
 	mutex_destroy(&s->mutex);
-	uart_unregister_driver(&s->uart);
+
+	/* TODO Is this clock different for each port?
+	        Can I disable it for each port? */
 	clk_disable_unprepare(s->clk);
+
+	max310x_spi_device_counter--;
+	if (!max310x_spi_device_counter)
+	{
+		uart_unregister_driver(&max310x_uart_driver);
+	}
+
+	mutex_unlock(&max310x_lock);
 
 	return 0;
 }
@@ -1277,22 +1384,11 @@ static const struct of_device_id __maybe_unused max310x_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, max310x_dt_ids);
 
-static struct regmap_config regcfg = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.write_flag_mask = 0x80,
-	.cache_type = REGCACHE_RBTREE,
-	.writeable_reg = max310x_reg_writeable,
-	.volatile_reg = max310x_reg_volatile,
-	.precious_reg = max310x_reg_precious,
-};
-
 #ifdef CONFIG_SPI_MASTER
 static int max310x_spi_probe(struct spi_device *spi)
 {
 	struct max310x_devtype *devtype;
 	unsigned long flags = 0;
-	struct regmap *regmap;
 	int ret;
 
 	/* Setup SPI bus */
@@ -1315,10 +1411,7 @@ static int max310x_spi_probe(struct spi_device *spi)
 		flags = IRQF_TRIGGER_FALLING;
 	}
 
-	regcfg.max_register = devtype->nr * 0x20 - 1;
-	regmap = devm_regmap_init_spi(spi, &regcfg);
-
-	return max310x_probe(&spi->dev, devtype, regmap, spi->irq, flags);
+	return max310x_probe(&spi->dev, devtype, spi->irq, flags);
 }
 
 static int max310x_spi_remove(struct spi_device *spi)
@@ -1335,9 +1428,10 @@ static const struct spi_device_id max310x_id_table[] = {
 };
 MODULE_DEVICE_TABLE(spi, max310x_id_table);
 
-static struct spi_driver max310x_uart_driver = {
+static struct spi_driver max310x_spi_driver = {
 	.driver = {
 		.name		= MAX310X_NAME,
+		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(max310x_dt_ids),
 		.pm		= &max310x_pm_ops,
 	},
@@ -1345,7 +1439,7 @@ static struct spi_driver max310x_uart_driver = {
 	.remove		= max310x_spi_remove,
 	.id_table	= max310x_id_table,
 };
-module_spi_driver(max310x_uart_driver);
+module_spi_driver(max310x_spi_driver);
 #endif
 
 MODULE_LICENSE("GPL");
