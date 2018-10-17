@@ -49,7 +49,7 @@
 /*
  * PCI I/O ports space
  */
-#define PCI_IOBASE	KSEG1ADDR(_AC(0x1bb00000, UL))
+#define PCI_IOBASE	KSEG1ADDR(_AC(0x1bd00000, UL))
 
 #include_next <spaces.h>
 

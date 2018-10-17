@@ -132,18 +132,7 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(pp->dbi_base))
 		return PTR_ERR(pp->dbi_base);
 
-	ret = dw_plat_add_pcie_port(pp, pdev);
-	if (ret < 0)
-		return ret;
-
-	io_virt = ioremap_uc(pp->io_base, pp->io_size);
-	if (!io_virt) {
-		dev_err(dev, "Failed to map PIO base %pa[p]\n", &pp->io_base);
-	} else {
-		set_io_port_base((unsigned long)io_virt);
-	}
-
-	return 0;
+	return dw_plat_add_pcie_port(pp, pdev);
 }
 
 static const struct of_device_id dw_plat_pcie_of_match[] = {
