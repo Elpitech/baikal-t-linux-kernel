@@ -209,7 +209,8 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 		r = radeon_sa_bo_manager_init(rdev, &rdev->ring_tmp_bo,
 					      RADEON_IB_POOL_SIZE*64*1024,
 					      RADEON_GPU_PAGE_SIZE,
-					      RADEON_GEM_DOMAIN_GTT, 0);
+					      RADEON_GEM_DOMAIN_GTT,
+					      RADEON_GEM_GTT_WC);
 	}
 	if (r) {
 		return r;

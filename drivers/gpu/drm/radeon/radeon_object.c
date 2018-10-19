@@ -132,8 +132,14 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 				TTM_PL_FLAG_TT;
 		} else {
 			rbo->placements[c].fpfn = 0;
+#ifndef CONFIG_DMA_NONCOHERENT
 			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED |
 						     TTM_PL_FLAG_TT;
+#else /* MIPS */
+			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
+						     TTM_PL_FLAG_UNCACHED |
+						     TTM_PL_FLAG_TT;
+#endif
 		}
 	}
 
