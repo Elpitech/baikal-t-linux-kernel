@@ -59,8 +59,8 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/ntb.h>
 
+#include <linux/kernel_compat.h>
 #include "ntb_hw_idt.h"
-#include "delme_stub.h"
 
 #define NTB_NAME	"ntb_hw_idt"
 #define NTB_DESC	"IDT PCI-E Non-Transparent Bridge Driver"

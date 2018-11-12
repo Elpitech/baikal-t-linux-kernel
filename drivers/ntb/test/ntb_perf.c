@@ -84,7 +84,7 @@
 #include <linux/random.h>
 #include <linux/ntb.h>
 
-#include "delme_stub.h"
+#include <linux/kernel_compat.h>
 
 #define DRIVER_NAME		"ntb_perf"
 #define DRIVER_VERSION		"2.0"
