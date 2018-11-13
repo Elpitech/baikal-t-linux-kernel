@@ -439,6 +439,25 @@ config SERIAL_8250_MOXA
 	  This driver can also be built as a module. The module will be called
 	  8250_moxa. If you want to do that, say M here.
 
+config SERIAL_8250_AX99100
+	tristate "Support for Asix AX99100 PCI-Serial Ports"
+	depends on SERIAL_8250 && PCI
+	help
+	  Say Y here if you have an Asix AX99100 controller with serial
+	  functions activated. If unsure, say N.
+
+	  This driver can also be built as a module. The module will be called
+	  8250_ax99100. If you want to do that, say M here.
+
+config SERIAL_8250_AX99100_GPIO
+	bool "GPIO-interface support for AX99100"
+	depends on SERIAL_8250_AX99100 && GPIOLIB
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to enable the GPIO-interface of Asix AX99100 PCI-SP
+	  controller. There can be from 8 to 17 GPIOs available depending on
+	  the CHIP_MODE device setting.
+
 config SERIAL_OF_PLATFORM
 	tristate "Devicetree based probing for 8250 ports"
 	depends on SERIAL_8250 && OF
