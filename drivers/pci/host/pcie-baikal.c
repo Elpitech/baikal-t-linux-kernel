@@ -105,10 +105,8 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct dw_plat_pcie *dw_plat_pcie;
 	struct gpio_desc *reset_gpiod;
-	void __iomem *io_virt;
 	struct pcie_port *pp;
 	struct resource *res;  /* Resource from DT */
-	int ret;
 
 	/* Deassert the optional reset signal */
 	if (dev->of_node) {
