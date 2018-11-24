@@ -161,7 +161,7 @@
 		individual-sensing;
 		individual-port-switching;
 		oc-delay-us = <8000>;
-		non-removable-ports = <1>;
+		non-removable-ports = <1 2>;
 		sp-max-total-current-microamp = <200000>;
 		bp-max-total-current-microamp = <200000>;
 		sp-max-removable-current-microamp = <200000>;
