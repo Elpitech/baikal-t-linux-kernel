@@ -197,12 +197,13 @@
 &spi0 {
 	status = "okay";
 	num-cs = <1>;
+	cs-gpios = <&porta 18 GPIO_ACTIVE_LOW>;
 
 	rs485: max14830@0 {
 		compatible = "maxim,max14830", "spidev";
 		reg = <0>;
 		/* Decrease frequency from 26MHz to 1MHz due to odd SPI-DW */
-		spi-max-frequency = <1000000>;
+		spi-max-frequency = <20000000>;
 		clocks = <&rs485_xtal>;
 		clock-names = "xtal";
 		interrupt-parent = <&porta>;
