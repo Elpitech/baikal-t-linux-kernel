@@ -70,10 +70,9 @@ static int boot_spi_write(struct spi_master *master, int chip_select,
     int i, n1, n2;
     const uint8_t* end1 = tx1 + len1;
     const uint8_t* end2 = tx2 + len2;
-
-    DEFINE_SPINLOCK(mLock);
     unsigned long flags;
-    spin_lock_irqsave(&mLock, flags);               /* Critical section - ON */
+
+    local_irq_save(flags);               /* Critical section - ON */
 
     dws = spi_master_get_devdata(master);
 
@@ -105,7 +104,8 @@ static int boot_spi_write(struct spi_master *master, int chip_select,
     while(!(dw_boot_readl(dws, DW_SPI_SR) & SR_BUSY))    /* wait */
         ;
 
-    spin_unlock_irqrestore(&mLock, flags);          /* Critical section - OFF */
+    local_irq_restore(flags);          /* Critical section - OFF */
+    preempt_check_resched();
 
     udelay(10);                                     /* don't delete */
 
@@ -118,10 +118,9 @@ static int boot_spi_read(struct spi_master *master, int chip_select,
     int i;
     uint8_t* const rxend = rx + lenrx;
     struct dw_boot_spi *dws;
-
-    DEFINE_SPINLOCK(mLock);
     unsigned long flags;
-    spin_lock_irqsave(&mLock, flags);               /* Critical section - ON */
+
+    local_irq_save(flags);               /* Critical section - ON */
 
     if(!tx || !rx || !lentx || !lenrx || lentx > 4 || lenrx > 64*1024){
         return -1;
@@ -146,7 +145,10 @@ static int boot_spi_read(struct spi_master *master, int chip_select,
             *rx++ = dw_boot_readl(dws, DW_SPI_DR);
         }
     }
-    spin_unlock_irqrestore(&mLock, flags);          /* Critical section - OFF */
+
+    local_irq_restore(flags);          /* Critical section - OFF */
+    preempt_check_resched();
+
     return 0;
 }
 
