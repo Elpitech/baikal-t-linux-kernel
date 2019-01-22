@@ -1,5 +1,5 @@
 /*
- * Baikal-T CNC CU v1/v2 SFBT1 board device tree
+ * Baikal-T CNC IN SFBT1 board device tree
  *
  * Copyright (C) 2016-2018 T-platforms JSC
  *
@@ -12,9 +12,9 @@
 /dts-v1/;
 
 #include "tplatforms_sfbt1.dtsi"
-#include "tplatforms_cnccu.dtsi"
+#include "tplatforms_cncin.dtsi"
 
 / {
-	model = "Baikal-T CNC CU SFBT1 Board";
-	compatible = "baikal,mips", "baikal,baikal-t-soc", "tplatforms,baikal-sfbt1-card", "tplatforms,baikal-cnccu-sfbt1-board";
+	model = "Baikal-T CNC IN SFBT1 Board";
+	compatible = "baikal,mips", "baikal,baikal-t-soc", "tplatforms,baikal-sfbt1-card", "tplatforms,baikal-cncin-sfbt1-board";
 };

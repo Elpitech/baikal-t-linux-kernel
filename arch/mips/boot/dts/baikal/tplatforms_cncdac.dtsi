@@ -16,32 +16,33 @@
 		#size-cells = <1>;
 		ranges;
 
-		/* Reserve 3MB for various CMA-based things (ntb_tool, etc) */
-		cma_reserved {
+		/* Reserve 16MB for CMA-based allocations */
+		cma: buffer@0 {
 			compatible = "shared-dma-pool";
-			size = <0x300000>;
-			reusable;
-			linux,cma-default;
+			alloc-ranges = <0x01000000 0x05000000>;
+			size = <0x1000000>;
+			alignment = <0x1000000>;
+			reusable; /* specific for CMA */
 		};
 	};
 
-	/*
-	 * Pseudo-device with watchdog timer GPIO-pins declaration. It will be
-	 * used in CNC NTB driver to notify CU of possible peripheral board
-	 * hang ups.
-	 */
-	cnc_wd_gpio {
-		wd_setup-gpios = <&porta 2  GPIO_ACTIVE_HIGH>, /* wd_set pin */
-				 <&porta 27 GPIO_ACTIVE_HIGH>; /* wd_in  pin */
-	};
+	/* CNC DAC board platform device */
+	cnc {
+		compatible = "cnc,dac", "cnc,board";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-	/*
-	 * Pseudo-device with DAC GPIO lines declaration. They are used by CNC
-	 * DAC driver logic to notify load DAC registers to outputs.
-	 */
-	cnc_dac_gpio {
-		cnc_ldac1-gpios = <&porta 2 GPIO_ACTIVE_HIGH>; /* LDAC pin for rev1 boards */
-		cnc_ldac3-gpios = <&porta 8 GPIO_ACTIVE_HIGH>; /* LDAC pin for rev3 boards */
+		memory-region = <&cma>;
+		board_info = <&shred>;
+		board_addr = <&addr>;
+
+		/* Load-DAC outputs setup in the DAC config registers */
+		ldac-gpios = <&porta 2 GPIO_ACTIVE_HIGH>;
+
+		dac@0 {
+			reg = <0>;
+			dev = <&dac0 &dac1>;
+		};
 	};
 };
 
@@ -73,7 +74,7 @@
 &i2c1 {
 	status = "okay";
 
-	shred@21 {
+	shred: gpio@21 {
 		compatible = "nxp,pcf8574";
 		reg = <0x21>;
 		gpio-controller;
@@ -81,15 +82,7 @@
 		ngpios = <8>; /* Informative */
 	};
 
-	func@22 {
-		compatible = "nxp,pcf8574";
-		reg = <0x22>;
-		gpio-controller;
-		#gpio-cells = <2>;
-		ngpios = <8>; /* Informative */
-	};
-
-	bayid@23 {
+	addr: gpio@23 {
 		compatible = "nxp,pcf8574";
 		reg = <0x23>;
 		gpio-controller;
@@ -115,16 +108,18 @@
 	num-cs = <2>;
 
 	dac0: da5754@0 {
-		compatible = "adi,ad5754";
+		/*compatible = "adi,ad5754";*/
+		compatible = "cnc,dac-chip";
 		reg = <0>;
-		spi-max-frequency = <1000000>;
+		spi-max-frequency = <5000000>;
 		spi-cpha;
 	};
 
 	dac1: da5754@1 {
-		compatible = "adi,ad5754";
+		/*compatible = "adi,ad5754";*/
+		compatible = "cnc,dac-chip";
 		reg = <1>;
-		spi-max-frequency = <1000000>;
+		spi-max-frequency = <5000000>;
 		spi-cpha;
 	};
 };

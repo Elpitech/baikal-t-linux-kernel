@@ -18,12 +18,13 @@
 		#size-cells = <1>;
 		ranges;
 
-		/* Reserve 20MB for various CMA-based things (ntb_tool, etc) */
-		cma_reserved {
+		/* Reserve 32MB for CMA-based allocations */
+		cma: buffer@0 {
 			compatible = "shared-dma-pool";
-			size = <0x1400000>;
-			reusable;
-			linux,cma-default;
+			alloc-ranges = <0x01000000 0x05000000>;
+			size = <0x2000000>;
+			alignment = <0x1000000>;
+			reusable; /* specific for CMA */
 		};
 	};
 
@@ -136,34 +137,44 @@
 		};
 	};
 
-	/*
-	 * Pseudo-device with watchdog timer GPIO-pins declaration. It will be
-	 * used either by CNC watchdog hardware driver or by CNC NTB driver to
-	 * handler watchdog expire interrupts corresponding to corresponding
-	 * peripheral boards ports. Specific WDT GPIOs are named within PCIe
-	 * bus number, so to have them easily distinguished in the driver.
-	 */
-	cnc_wd_gpio {
-		wd_setup-gpios = <&porta 2  GPIO_ACTIVE_HIGH>, /* wd_set pin */
-				 <&porta 27 GPIO_ACTIVE_HIGH>; /* wd_in  pin */
-		wd_int_bus3-gpios = <&wd_irq_bp0 5 GPIO_ACTIVE_HIGH>, /* IDT PCIe P4 */
-				    <&wd_irq_bp0 4 GPIO_ACTIVE_HIGH>, /* IDT PCIe P6 */
-				    <&wd_irq_bp0 3 GPIO_ACTIVE_HIGH>, /* IDT PCIe P8 */
-				    <&wd_irq_bp0 2 GPIO_ACTIVE_HIGH>, /* IDT PCIe P12 */
-				    <&wd_irq_bp0 1 GPIO_ACTIVE_HIGH>, /* IDT PCIe P16 */
-				    <&wd_irq_bp0 0 GPIO_ACTIVE_HIGH>; /* IDT PCIe P20 */
-		wd_int_bus5-gpios = <&wd_irq_bp1 5 GPIO_ACTIVE_HIGH>, /* IDT PCIe P4 */
-				    <&wd_irq_bp1 4 GPIO_ACTIVE_HIGH>, /* IDT PCIe P6 */
-				    <&wd_irq_bp1 3 GPIO_ACTIVE_HIGH>, /* IDT PCIe P8 */
-				    <&wd_irq_bp1 2 GPIO_ACTIVE_HIGH>, /* IDT PCIe P12 */
-				    <&wd_irq_bp1 1 GPIO_ACTIVE_HIGH>, /* IDT PCIe P16 */
-				    <&wd_irq_bp1 0 GPIO_ACTIVE_HIGH>; /* IDT PCIe P20 */
-		wd_int_bus7-gpios = <&wd_irq_bp3 5 GPIO_ACTIVE_HIGH>, /* IDT PCIe P4 */
-				    <&wd_irq_bp3 4 GPIO_ACTIVE_HIGH>, /* IDT PCIe P6 */
-				    <&wd_irq_bp3 3 GPIO_ACTIVE_HIGH>, /* IDT PCIe P8 */
-				    <&wd_irq_bp3 2 GPIO_ACTIVE_HIGH>, /* IDT PCIe P12 */
-				    <&wd_irq_bp3 1 GPIO_ACTIVE_HIGH>, /* IDT PCIe P16 */
-				    <&wd_irq_bp3 0 GPIO_ACTIVE_HIGH>; /* IDT PCIe P20 */
+	/* CNC CU board platform device */
+	cnc {
+		compatible = "cnc,cu", "cnc,board";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		memory-region = <&cma>;
+		board_info = <&shred>;
+
+		cnc_bp@0 {
+			compatible = "cnc,bp";
+			reg = <0>;
+
+			board_idt_smb = <&idt_bp0_ssmb>;
+			board_io0_smb = <&io0_bp0_smb>;
+			board_io1_smb = <&io1_bp0_smb>;
+			board_down_smb = <&down_bp0_smb>;
+		};
+
+		cnc_bp@1 {
+			compatible = "cnc,bp";
+			reg = <1>;
+
+			board_idt_smb = <&idt_bp1_ssmb>;
+			board_io0_smb = <&io0_bp1_smb>;
+			board_io1_smb = <&io1_bp1_smb>;
+			board_down_smb = <&down_bp1_smb>;
+		};
+
+		cnc_bp@2 {
+			compatible = "cnc,bp";
+			reg = <2>;
+
+			board_idt_smb = <&idt_bp2_ssmb>;
+			board_io0_smb = <&io0_bp2_smb>;
+			board_io1_smb = <&io1_bp2_smb>;
+			board_down_smb = <&down_bp2_smb>;
+		};
 	};
 };
 
@@ -182,7 +193,7 @@
 &i2c1 {
 	status = "okay";
 
-	shred@21 {
+	shred: gpio@21 {
 		compatible = "nxp,pcf8574";
 		reg = <0x21>;
 		gpio-controller;
@@ -275,7 +286,7 @@
  */
 &i2c0_gp_p2 {
 	/* Backplane #0 main i2c-mux */
-	i2c_bp0_sw@70 {
+	i2c_bp0_mux: i2c_bp0_sw@70 {
 		compatible = "nxp,pca9548";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -361,7 +372,7 @@
  */
 &down_bp0_smb {
 	/* Backplane #1 main i2c-mux */
-	i2c_bp1_sw@70 {
+	i2c_bp1_mux: i2c_bp1_sw@70 {
 		compatible = "nxp,pca9548";
 		reg = <0x71>;
 		#address-cells = <1>;
@@ -441,7 +452,7 @@
 };
 
 /*
- * Backplane #3 - optional PCIe x16 connected board, which reside IDT PCIe
+ * Backplane #2 - optional PCIe x16 connected board, which reside IDT PCIe
  * switch and can have up to six peripheral boards. Backplane #1 is plugged
  * to its upstream port and practically nothing should be on downstream
  * from platform point of view. Theoretically other backplanes or some PCIe
@@ -450,7 +461,7 @@
  */
 &down_bp1_smb {
 	/* Backplane #1 main i2c-mux */
-	i2c_bp3_sw@70 {
+	i2c_bp2_mux: i2c_bp2_sw@70 {
 		compatible = "nxp,pca9548";
 		reg = <0x73>;
 		#address-cells = <1>;
@@ -458,26 +469,26 @@
 		idle-state = <0>; /* Spare0 is connected on idle */
 
 		/* Peripherals IO#0 SMBus */
-		io0_bp3_smb: i2c_bp3@2 {
+		io0_bp2_smb: i2c_bp2@2 {
 			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
 
 		/* IDT PCIe-switch Slave SMBus */
-		idt_bp3_ssmb: i2c_bp3@3 {
+		idt_bp2_ssmb: i2c_bp2@3 {
 			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			/* IDT 89H32NT8AG2@0x74 - eeprom, CSR iface */
-			idt_bp3@74 {
+			idt_bp2@74 {
 				compatible = "idt,89hpes32nt8ag2";
 				reg = <0x74>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				idt_bp3_eeprom@50 {
+				idt_bp2_eeprom@50 {
 					compatible = "onsemi,24c64";
 					reg = <0x50>;
 					/* read-only; */
@@ -489,7 +500,7 @@
 		};
 
 		/* Downstream SMBus */
-		down_bp3_smb: i2c_bp3@4 {
+		down_bp2_smb: i2c_bp2@4 {
 			reg = <4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -498,7 +509,7 @@
 		};
 
 		/* Peripherals IO#1 SMBus */
-		io1_bp3_smb: i2c_bp3@5 {
+		io1_bp2_smb: i2c_bp2@5 {
 			reg = <5>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -507,12 +518,12 @@
 		/* WD irq expander SMBus
 		 * NOTE This is specific for rev.3 backplanes
 		 */
-		wd_bp3_smb: i2c_bp3@7 {
+		wd_bp2_smb: i2c_bp2@7 {
 			reg = <7>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			wd_irq_bp3: wd_exp_bp3@24 {
+			wd_irq_bp2: wd_exp_bp2@24 {
 				compatible = "nxp,pcf8574";
 				reg = <0x24>;
 

@@ -1,7 +1,7 @@
 /*
- * Baikal-T CNC IO SFBT1 board device tree
+ * Baikal-T CNC DAC v3 SFBT1 board device tree
  *
- * Copyright (C) 2016-2018 T-platforms JSC
+ * Copyright (C) 2018 T-platforms JSC
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -12,9 +12,9 @@
 /dts-v1/;
 
 #include "tplatforms_sfbt1.dtsi"
-#include "tplatforms_cncio.dtsi"
+#include "tplatforms_cncdac3.dtsi"
 
 / {
-	model = "Baikal-T CNC IO SFBT1 Board";
-	compatible = "baikal,mips", "baikal,baikal-t-soc", "tplatforms,baikal-sfbt1-card", "tplatforms,baikal-cncio-sfbt1-board";
+	model = "Baikal-T CNC DAC v3 SFBT1 Board";
+	compatible = "baikal,mips", "baikal,baikal-t-soc", "tplatforms,baikal-sfbt1-card", "tplatforms,baikal-cncdac3-sfbt1-board";
 };

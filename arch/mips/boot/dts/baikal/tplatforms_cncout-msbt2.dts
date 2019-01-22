@@ -1,5 +1,5 @@
 /*
- * Baikal-T1 CNC CU v1/v2 MSBT2 board device tree
+ * Baikal-T1 CNC OUT MSBT2 board device tree
  *
  * Copyright (C) 2018 T-platforms JSC
  *
@@ -12,9 +12,9 @@
 /dts-v1/;
 
 #include "tplatforms_msbt2.dtsi"
-#include "tplatforms_cnccu.dtsi"
+#include "tplatforms_cncout.dtsi"
 
 / {
-	model = "Baikal-T1 CNC CU MSBT2 Board";
-	compatible = "baikal,mips", "baikal,baikal-t1-soc", "tplatforms,baikal-msbt2-card", "tplatforms,baikal-cnccu-msbt2-board";
+	model = "Baikal-T1 CNC OUT MSBT2 Board";
+	compatible = "baikal,mips", "baikal,baikal-t1-soc", "tplatforms,baikal-msbt2-card", "tplatforms,baikal-cncout-msbt2-board";
 };

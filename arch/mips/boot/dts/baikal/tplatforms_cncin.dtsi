@@ -1,5 +1,5 @@
 /*
- * Baikal-T/T1 CNC TTL board device tree
+ * Baikal-T/T1 CNC IN board device tree
  *
  * Copyright (C) 2018 T-platforms JSC
  *
@@ -26,9 +26,9 @@
 		};
 	};
 
-	/* CNC TTL board platform device */
+	/* CNC IN board platform device */
 	cnc {
-		compatible = "cnc,ttl", "cnc,board";
+		compatible = "cnc,in", "cnc,board";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -36,20 +36,10 @@
 		board_info = <&shred>;
 		board_addr = <&addr>;
 
-		var-gpios = <&porta 31 GPIO_ACTIVE_HIGH>, /* First custom IRQ line */
-			    <&porta 29 GPIO_ACTIVE_HIGH>; /* Second custom IRQ line */
-		ref-gpios = <&porta 13 GPIO_ACTIVE_HIGH>, /* Port #0 reference */
-			    <&porta  7 GPIO_ACTIVE_HIGH>, /* Port #1 reference */
-			    <&porta  9 GPIO_ACTIVE_HIGH>, /* Port #2 reference */
-			    <&porta 16 GPIO_ACTIVE_HIGH>, /* Port #3 reference */
-			    <&porta 26 GPIO_ACTIVE_HIGH>, /* Port #4 reference */
-			    <&porta  0 GPIO_ACTIVE_HIGH>, /* Port #5 reference */
-			    <&porta 30 GPIO_ACTIVE_HIGH>, /* Port #6 reference */
-			    <&porta  1 GPIO_ACTIVE_HIGH>; /* Port #7 reference */
-
-		cpld@0 {
+		/* Local expanders (must always exist) */
+		slave@0 {
 			reg = <0>;
-			dev = <&ttl0>;
+			dev = <&local_exp0 &local_exp1 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -59,6 +49,10 @@
 };
 
 &sata {
+	status = "disabled";
+};
+
+&mdio0 {
 	status = "disabled";
 };
 
@@ -72,6 +66,36 @@
 
 &gmac1 {
 	status = "disabled";
+};
+
+&i2c0 {
+	status = "okay";
+
+	local_exp0: gpioexp@76 {
+		/*compatible = "nxp,pca9539";*/
+		compatible = "cnc,gpio-exp";
+		reg = <0x76>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&porta>;
+		interrupts = <31 GPIO_ACTIVE_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		ngpios = <16>; /* Informative */
+	};
+
+	local_exp1: gpioexp@77 {
+		/*compatible = "nxp,pca9539";*/
+		compatible = "cnc,gpio-exp";
+		reg = <0x77>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&porta>;
+		interrupts = <29 GPIO_ACTIVE_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		ngpios = <16>; /* Informative */
+	};
 };
 
 /* Board settings devices */
@@ -105,18 +129,8 @@
 	status = "disabled";
 };
 
-/* CPLD Altera Max V with TTL firmware */
 &spi0 {
-	status = "okay";
-
-	num-cs = <1>;
-
-	ttl0: alteraCPLD@0 {
-		compatible = "cnc,cpld-ttl";
-		reg = <0>;
-		spi-max-frequency = <5000000>;
-		spi-cpol;
-	};
+	status = "disabled";
 };
 
 &spi1 {

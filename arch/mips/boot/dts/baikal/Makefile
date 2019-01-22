@@ -17,14 +17,24 @@ dtb-$(CONFIG_DTB_TPLATFORMS_AXT1_MSBT2)	+= tplatforms_axt1-msbt2.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_BC3BT1_MRBT1)	+= tplatforms_bc3bt1-mrbt1.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_CNC_SFBT1)	+= tplatforms_cnccu-sfbt1.dtb \
 						tplatforms_cnccu3-sfbt1.dtb \
-						tplatforms_cncio-sfbt1.dtb \
+						tplatforms_cncin-sfbt1.dtb \
+						tplatforms_cncin3-sfbt1.dtb \
+						tplatforms_cncout-sfbt1.dtb \
+						tplatforms_cncout3-sfbt1.dtb \
 						tplatforms_cncttl-sfbt1.dtb \
-						tplatforms_cncdac-sfbt1.dtb
+						tplatforms_cncttl3-sfbt1.dtb \
+						tplatforms_cncdac-sfbt1.dtb \
+						tplatforms_cncdac3-sfbt1.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_CNC_MSBT2)	+= tplatforms_cnccu-msbt2.dtb \
 						tplatforms_cnccu3-msbt2.dtb \
-						tplatforms_cncio-msbt2.dtb \
+						tplatforms_cncin-msbt2.dtb \
+						tplatforms_cncin3-msbt2.dtb \
+						tplatforms_cncout-msbt2.dtb \
+						tplatforms_cncout3-msbt2.dtb \
 						tplatforms_cncttl-msbt2.dtb \
-						tplatforms_cncdac-msbt2.dtb
+						tplatforms_cncttl3-msbt2.dtb \
+						tplatforms_cncdac-msbt2.dtb \
+						tplatforms_cncdac3-msbt2.dtb
 
 dtb-$(CONFIG_DT_NONE)	+= \
 						baikal_bfk.dtb	\
@@ -46,14 +56,24 @@ dtb-$(CONFIG_DT_NONE)	+= \
 						tplatforms_bc3bt1-mrbt1.dtb \
 						tplatforms_cnccu-sfbt1.dtb \
 						tplatforms_cnccu3-sfbt1.dtb \
-						tplatforms_cncio-sfbt1.dtb \
+						tplatforms_cncin-sfbt1.dtb \
+						tplatforms_cncin3-sfbt1.dtb \
+						tplatforms_cncout-sfbt1.dtb \
+						tplatforms_cncout3-sfbt1.dtb \
 						tplatforms_cncttl-sfbt1.dtb \
+						tplatforms_cncttl3-sfbt1.dtb \
 						tplatforms_cncdac-sfbt1.dtb \
+						tplatforms_cncdac3-sfbt1.dtb \
 						tplatforms_cnccu-msbt2.dtb \
 						tplatforms_cnccu3-msbt2.dtb \
-						tplatforms_cncio-msbt2.dtb \
+						tplatforms_cncin-msbt2.dtb \
+						tplatforms_cncin3-msbt2.dtb \
+						tplatforms_cncout-msbt2.dtb \
+						tplatforms_cncout3-msbt2.dtb \
 						tplatforms_cncttl-msbt2.dtb \
-						tplatforms_cncdac-msbt2.dtb
+						tplatforms_cncttl3-msbt2.dtb \
+						tplatforms_cncdac-msbt2.dtb \
+						tplatforms_cncdac3-msbt2.dtb
 
 obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
 
