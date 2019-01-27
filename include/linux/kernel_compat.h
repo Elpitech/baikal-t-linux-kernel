@@ -9,6 +9,7 @@
 #define KERNEL_COMPAT_H
 
 #include <linux/version.h>
+#include <linux/spi/spi.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
 #include <linux/kernel.h>
@@ -21,6 +22,24 @@
 #define PCI_IRQ_MSIX            (1 << 2) /* allow MSI-X interrupts */
 #define PCI_IRQ_ALL_TYPES \
 	(PCI_IRQ_LEGACY | PCI_IRQ_MSI | PCI_IRQ_MSIX)
+#endif
+
+/* This method was exported only sincekernel 4.20 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,20,0)
+#if IS_ENABLED(CONFIG_OF)
+static inline int __spi_of_device_match(struct device *dev, void *data)
+{
+	return dev->of_node == data;
+}
+
+/* must call put_device() when done with returned spi_device device */
+static inline struct spi_device *of_find_spi_device_by_node(struct device_node *node)
+{
+	struct device *dev = bus_find_device(&spi_bus_type, NULL, node,
+						__spi_of_device_match);
+	return dev ? to_spi_device(dev) : NULL;
+}
+#endif /* IS_ENABLED(CONFIG_OF) */
 #endif
 
 /**
