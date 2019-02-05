@@ -11,9 +11,8 @@
 
 / {
 	clocks_cnccu {
-		#address-cells = <1>;
-		#size-cells = <1>;
-
+		#address-cells = <2>;
+		#size-cells = <2>;
 		ranges;
 
 		rs485_xtal: rs485_clk4m {

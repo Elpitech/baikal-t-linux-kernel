@@ -14,16 +14,16 @@
 / {
 	/* Reserve memory regions for CMA and NTB */
 	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		ranges;
 
 		/* Reserve 32MB for CMA-based allocations */
 		cma: buffer@0 {
 			compatible = "shared-dma-pool";
-			alloc-ranges = <0x01000000 0x05000000>;
-			size = <0x2000000>;
-			alignment = <0x1000000>;
+			alloc-ranges = <0 0x01000000 0 0x05000000>;
+			size = <0 0x2000000>;
+			alignment = <0 0x1000000>;
 			reusable; /* specific for CMA */
 		};
 	};

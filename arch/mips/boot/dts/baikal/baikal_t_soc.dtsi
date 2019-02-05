@@ -12,10 +12,10 @@
 #include "baikal_t_clocks.dtsi"
 
 / {
-
+	/* Extend CPU address space to 64-bit in case if XPA is enabled */
 	compatible = "baikal,mips", "baikal,baikal-t-soc";
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 	interrupt-parent = <&gic>;
 
 	aliases {
@@ -56,7 +56,7 @@
 
 	cpufreq: cpufreq@1F04D000 {
 		compatible = "be,cpufreq";
-		reg = <0x1F04D000 0x0008>;
+		reg = <0 0x1F04D000 0 0x0008>;
 		clocks = <&cpu_clk 0>;
 		clock-names = "cpuclk";
 		clock-frequency-range = <200000000 900000000>;
@@ -72,7 +72,7 @@
 
 	gic: gic@1BDC0000 {
 		compatible = "mti,gic";
-		reg = <0x1BDC0000 0x20000>;
+		reg = <0 0x1BDC0000 0 0x20000>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
 
@@ -87,10 +87,10 @@
 
 	sram: sram@1BF80000 {
 		compatible = "mmio-sram";
-		reg = <0x1BF80000 0x10000>;
+		reg = <0 0x1BF80000 0 0x10000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0 0x1BF80000 0x10000>;
+		ranges = <0 0 0x1BF80000 0x10000>;
 
 		smp-sram@0 {
 			compatible = "be,smp-sram";
@@ -106,7 +106,7 @@
 		#size-cells = <1>;
 		interrupt-parent = <&gic>;
 
-		ranges;
+		ranges = <0x08000000 0 0x08000000 0x18000000>;
 
 		dma: dma@1f041000 {
 			compatible = "snps,dma-spear1340";
@@ -266,7 +266,7 @@
 		#size-cells = <1>;
 		interrupt-parent = <&gic>;
 
-		ranges;
+		ranges = <0x1F000000 0 0x1F000000 0x1000000>;
 
 		bc: bc@1F040000 {
 			compatible = "be,bc";
