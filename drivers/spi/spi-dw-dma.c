@@ -39,7 +39,7 @@ static irqreturn_t transfer_handler (struct dw_spi *dws)
 	return IRQ_HANDLED;
 }
 
-static enum dma_slave_buswidth convert_dma_width (u32 dma_width)
+static enum dma_slave_buswidth __maybe_unused convert_dma_width (u32 dma_width)
 {
 	if (dma_width == 1)
 		return DMA_SLAVE_BUSWIDTH_1_BYTE;
@@ -87,36 +87,35 @@ static struct dma_async_tx_descriptor *prepare_tx (
 	struct dw_spi       *dws,
 	struct spi_transfer *xfer)
 {
+	struct dma_async_tx_descriptor *desc;
+	struct dma_slave_config config = {0};
+	int ret;
+
 	if (!xfer->tx_buf)
 		return NULL;
 
-
 	/* slave config */
-	struct dma_slave_config config;
-	memset(&config, 0, sizeof(config));
 	config.direction      = DMA_MEM_TO_DEV;
 	config.device_fc      = false;
-
 	config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	config.src_maxburst   = dws->fifo_len/2;
-	config.src_addr       = dws->tx;
-
 	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 	config.dst_maxburst   = dws->fifo_len/2;
-	config.dst_addr       = dws->dma_addr & 0x1FFFFFFF;
+	config.dst_addr       = dws->dma_addr;
 
-	dmaengine_slave_config(dws->txchan, &config);
+	ret = dmaengine_slave_config(dws->txchan, &config);
+	if (ret) {
+		dev_err(&dws->master->dev, "Failed to set DMA config\n");
+		return NULL;
+	}
 
 	/* descriptor */
-	struct dma_async_tx_descriptor *desc;
-	desc = dmaengine_prep_slave_single(
-		dws->txchan,					// chan
-		(void*)((int)xfer->tx_buf & 0x1FFFFFFF),	// buf
-		xfer->len,					// len
-		DMA_MEM_TO_DEV,					// dir
-		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);		// flags
-	if (!desc)
+	desc = dmaengine_prep_slave_sg(dws->txchan,
+		xfer->tx_sg.sgl, xfer->tx_sg.nents,
+		DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc) {
+		dev_err(&dws->master->dev, "Failed to prepare DMA-slave\n");
 		return NULL;
+	}
 
 	/* callback */
 	desc->callback = tx_done;
@@ -129,36 +128,35 @@ static struct dma_async_tx_descriptor *prepare_rx (
 	struct dw_spi       *dws,
 	struct spi_transfer *xfer)
 {
+	struct dma_async_tx_descriptor *desc;
+	struct dma_slave_config config = {0};
+	int ret;
+
 	if (!xfer->rx_buf)
 		return NULL;
 
 	/* slave config */
-	struct dma_slave_config config;
-	memset(&config, 0, sizeof(config));
 	config.direction      = DMA_DEV_TO_MEM;
 	config.device_fc      = false;
-
 	config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	config.src_maxburst   = dws->fifo_len/2;
-	config.src_addr       = dws->dma_addr & 0x1FFFFFFF;
-
 	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	config.dst_maxburst   = dws->fifo_len/2;
-	config.dst_addr       = dws->rx;
+	config.src_maxburst   = dws->fifo_len/2;
+	config.src_addr       = dws->dma_addr;
 
-	dmaengine_slave_config(dws->rxchan, &config);
-
+	ret = dmaengine_slave_config(dws->rxchan, &config);
+	if (ret) {
+		dev_err(&dws->master->dev, "Failed to set DMA config\n");
+		return NULL;
+	}
 
 	/* descriptor */
-	struct dma_async_tx_descriptor *desc;
-	desc = dmaengine_prep_slave_single(
-		dws->rxchan,					// chan
-		(void*)((int)xfer->rx_buf & 0x1FFFFFFF),	// buf
-		xfer->len,					// len
-		DMA_DEV_TO_MEM,					// dir
-		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);		// flags
-	if (!desc)
+	desc = dmaengine_prep_slave_sg(dws->rxchan,
+		xfer->rx_sg.sgl, xfer->rx_sg.nents,
+		DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc) {
+		dev_err(&dws->master->dev, "Failed to prepare DMA-slave\n");
 		return NULL;
+	}
 
 	/* callback */
 	desc->callback = rx_done;
@@ -219,6 +217,10 @@ static bool can (
 
 static int setup (struct dw_spi *dws, struct spi_transfer *xfer)
 {
+	u16 dma_ctrl = 0;
+	u32 cr0;
+	u32 tmode;
+
 	/* clear */
 	// todo: dont clean all regs
 	dw_writel(dws, DW_SPI_IMR,    0);
@@ -233,9 +235,6 @@ static int setup (struct dw_spi *dws, struct spi_transfer *xfer)
 	dw_writel(dws, DW_SPI_DMATDLR,0);
 
 	/* MODE */
-	u32 cr0;
-	u32 tmode;
-
 	if (dws->rx && dws->tx)	tmode = SPI_TMOD_TR;
 	else if (dws->rx)	    tmode = SPI_TMOD_RO;
 	else			        tmode = SPI_TMOD_TO;
@@ -254,7 +253,6 @@ static int setup (struct dw_spi *dws, struct spi_transfer *xfer)
 
 	/* DMATDLR */
 	/* DMACR */
-	u16 dma_ctrl = 0;
 	if (dws->tx) {
 		dma_ctrl |= SPI_DMA_TDMAE;
 		dw_writel(dws, DW_SPI_DMATDLR, dws->fifo_len/2);

@@ -59,7 +59,7 @@ static int dw_spi_mmio_dma_probe(struct platform_device *pdev)
         dev_err(&pdev->dev, "SPI region map failed\n");
         return PTR_ERR(dws->regs);
     }
-    dws->paddr = dws->regs;
+    dws->paddr = mem->start;
 
     dws->irq = platform_get_irq(pdev, 0);
     if (dws->irq < 0) {
@@ -79,7 +79,10 @@ static int dw_spi_mmio_dma_probe(struct platform_device *pdev)
     dws->bus_num = of_alias_get_id(pdev->dev.of_node, "ssi");
     dws->max_freq = clk_get_rate(dwsmmio->clk);
     device_property_read_u32(&pdev->dev, "reg-io-width", &dws->reg_io_width);
-    device_property_read_u32(&pdev->dev, "num-cs", &dws->num_cs);
+
+    num_cs = 1;
+    device_property_read_u32(&pdev->dev, "num-cs", &num_cs);
+    dws->num_cs = num_cs;
 
     if (pdev->dev.of_node) {
         int i;
