@@ -59,7 +59,6 @@
 		reg = <0x1F04D000 0x0008>;
 		clocks = <&cpu_clk 0>;
 		clock-names = "cpuclk";
-		clock-frequency-range = <200000000 1200000000>;
 	};
 
 	gic_wdt: gic_wdt {

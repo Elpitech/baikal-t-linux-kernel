@@ -54,12 +54,12 @@
 		};
 	};
 
-	cpus_freq {
+	cpufreq: cpufreq@1F04D000 {
 		compatible = "be,cpufreq";
+		reg = <0x1F04D000 0x0008>;
 		clocks = <&cpu_clk 0>;
 		clock-names = "cpuclk";
-		be,clk-freq-min = <200000>;
-		be,clk-freq-max = <1200000>;
+		clock-frequency-range = <200000000 900000000>;
 	};
 
 	gic_wdt: gic_wdt {

@@ -67,6 +67,7 @@ config BAIKAL_T_COMMON
     # Hardware features
     select HW_HAS_PCI
     select HW_PERF_EVENTS
+    select BAIKAL_T1_CPUFREQ
 
     # Common
     select PHYLIB
