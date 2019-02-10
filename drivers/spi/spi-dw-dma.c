@@ -67,36 +67,34 @@ static struct dma_async_tx_descriptor *prepare_tx (
 	struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *desc;
-	struct dma_slave_config config;
+	struct dma_slave_config config = {0};
+	int ret;
 
 	if (!xfer->tx_buf)
 		return NULL;
 
-
 	/* slave config */
-	memset(&config, 0, sizeof(config));
 	config.direction      = DMA_MEM_TO_DEV;
 	config.device_fc      = false;
-
 	config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	config.src_maxburst   = dws->fifo_len/2;
-	config.src_addr       = (phys_addr_t)dws->tx;
-
 	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 	config.dst_maxburst   = dws->fifo_len/2;
-	config.dst_addr       = CPHYSADDR(dws->dma_addr);
+	config.dst_addr       = dws->dma_addr;
 
-	dmaengine_slave_config(dws->txchan, &config);
+	ret = dmaengine_slave_config(dws->txchan, &config);
+	if (ret) {
+		dev_err(&dws->master->dev, "Failed to set DMA config\n");
+		return NULL;
+	}
 
 	/* descriptor */
-	desc = dmaengine_prep_slave_single(
-		dws->txchan,				/* chan */
-		CPHYSADDR(xfer->tx_buf),		/* dws->tx, buf_tx */
-		xfer->len,				/* len */
-		DMA_MEM_TO_DEV,				/* dir */
-		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);	/* flags */
-	if (!desc)
+	desc = dmaengine_prep_slave_sg(dws->txchan,
+		xfer->tx_sg.sgl, xfer->tx_sg.nents,
+		DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc) {
+		dev_err(&dws->master->dev, "Failed to prepare DMA-slave\n");
 		return NULL;
+	}
 
 	/* callback */
 	desc->callback = tx_done;
@@ -110,36 +108,34 @@ static struct dma_async_tx_descriptor *prepare_rx (
 	struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *desc;
-	struct dma_slave_config config;
+	struct dma_slave_config config = {0};
+	int ret;
 
 	if (!xfer->rx_buf)
 		return NULL;
 
 	/* slave config */
-	memset(&config, 0, sizeof(config));
 	config.direction      = DMA_DEV_TO_MEM;
 	config.device_fc      = false;
-
 	config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	config.src_maxburst   = dws->fifo_len/2;
-	config.src_addr       = CPHYSADDR(dws->dma_addr);
-
 	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	config.dst_maxburst   = dws->fifo_len/2;
-	config.dst_addr       = (phys_addr_t)dws->rx;
+	config.src_maxburst   = dws->fifo_len/2;
+	config.src_addr       = dws->dma_addr;
 
-	dmaengine_slave_config(dws->rxchan, &config);
-
+	ret = dmaengine_slave_config(dws->rxchan, &config);
+	if (ret) {
+		dev_err(&dws->master->dev, "Failed to set DMA config\n");
+		return NULL;
+	}
 
 	/* descriptor */
-	desc = dmaengine_prep_slave_single(
-		dws->rxchan,				/* chan */
-		CPHYSADDR(xfer->rx_buf),		/* dws->rx, buf_rx */
-		xfer->len,				/* len */
-		DMA_DEV_TO_MEM,				/* dir */
-		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);	/* flags */
-	if (!desc)
+	desc = dmaengine_prep_slave_sg(dws->rxchan,
+		xfer->rx_sg.sgl, xfer->rx_sg.nents,
+		DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc) {
+		dev_err(&dws->master->dev, "Failed to prepare DMA-slave\n");
 		return NULL;
+	}
 
 	/* callback */
 	desc->callback = rx_done;
