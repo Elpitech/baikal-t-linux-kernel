@@ -127,7 +127,7 @@
 
 	eeprom@50 {
 		compatible = "atmel,24c02";
-		pagesize = <16>;
+		pagesize = <8>;
 		reg = <0x50>;
 	};
 };
@@ -135,13 +135,13 @@
 &i2c1 {
 	eeprom@50 {
 		compatible = "atmel,24c02";
-		pagesize = <16>;
+		pagesize = <8>;
 		reg = <0x50>;
 	};
 
 	eeprom@51 {
 		compatible = "atmel,24c02";
-		pagesize = <16>;
+		pagesize = <8>;
 		reg = <0x51>;
 	};
 

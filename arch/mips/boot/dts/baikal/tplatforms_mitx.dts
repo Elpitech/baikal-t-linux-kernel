@@ -159,7 +159,7 @@
 
 	usbhub_eeprom: eeprom@50 {
 		compatible = "atmel,24c02";
-		pagesize = <16>;
+		pagesize = <8>;
 		reg = <0x50>;
 	};
 
