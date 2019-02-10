@@ -161,7 +161,6 @@
 };
 
 &spi0 {
-	reg-io-width = <4>;
 	num-cs = <3>;
 	cs-gpios = <&porta 23 GPIO_ACTIVE_LOW>,
 			   <&porta 28 GPIO_ACTIVE_LOW>,
@@ -208,7 +207,6 @@
 };
 
 &spi2 {
-	reg-io-width = <4>;
 	num-cs = <1>;
 	status = "okay";
 
