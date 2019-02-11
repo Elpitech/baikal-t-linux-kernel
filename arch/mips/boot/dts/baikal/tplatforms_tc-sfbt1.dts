@@ -18,12 +18,12 @@
 	compatible = "baikal,mips", "baikal,baikal-t-soc", "tplatforms,baikal-sfbt1-card", "tplatforms,baikal-tc-sfbt1-board";
 
 	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		ranges;
 
 		display_reserved: framebuffer@0x07000000 {
-			reg = <0x07000000 0x01000000>;
+			reg = <0 0x07000000 0 0x01000000>;
 		};
 	};
 
