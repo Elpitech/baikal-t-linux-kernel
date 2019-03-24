@@ -94,7 +94,7 @@ static int be_get_max_lvl_usb(void)
 	return max_lvl;
 }
 
-static int baikal_kexec_usb_down(void)
+static int __maybe_unused baikal_kexec_usb_down(void)
 {
 	int usb_lvl = 0;
 	int maxlvl = 0;
@@ -377,15 +377,7 @@ int baikal_kexec_prepare(struct kimage *kimage)
 
 void baikal_kexec_shutdown(void)
 {
-	int ret = 0;
-
 	pr_info("baikal-kexec: baikal_kexec_shutdown\n");
-
-	/* Shutdown USB */
-	ret = baikal_kexec_usb_down();
-	if (ret) {
-		pr_err("baikal-kexec - baikal_kexec_shutdown: usb_down() failed, ret = %d\n", ret);
-	}
 
 	/* Reset PCIe */
 	/* dw_pcie_kexec_prepare(); */
