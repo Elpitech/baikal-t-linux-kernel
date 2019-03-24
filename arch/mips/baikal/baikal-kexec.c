@@ -24,7 +24,6 @@
 #include <linux/compiler.h>
 #include <linux/kexec.h>
 #include <linux/libfdt.h>
-#include <linux/usb.h>
 #include <linux/cpumask.h>
 
 #include <asm/cacheflush.h>
@@ -36,93 +35,6 @@
 #include <asm/smp-cps.h>
 #include <asm/mips-cpc.h>
 #include <asm/machine_kexec.h>
-
-
-/*
- * USB funcs
- */
-
-#define BE_KEXEC_MAX_USB_LVL 15
-extern struct bus_type usb_bus_type;
-extern struct usb_device_driver usb_generic_driver;
-extern int usb_remove_device(struct usb_device *);
-extern void usb_disconnect(struct usb_device **pdev);
-extern void usb_hub_cleanup(void);
-extern void usb_major_cleanup(void);
-extern void usb_devio_cleanup(void);
-extern void usb_deregister_device_driver(struct usb_device_driver *);
-extern void bus_unregister(struct bus_type *bus);
-
-static int be_usb_maxlvl_func(struct usb_device *dev, void *lvl)
-{
-	if (dev->state != USB_STATE_NOTATTACHED) {
-		if (dev->level >= *((int *)lvl)) {
-			*((int *)lvl) = dev->level;
-		}
-	}
-	return 0;
-}
-
-static int be_usb_down_func(struct usb_device *dev, void *dat)
-{
-	int ret;
-	int lvl = *((int *)dat);
-
-	pr_debug("baikal-kexec - be_usb_down_func: dev 0x%p, path %s, slot %d, state %d, level %d\n",
-		dev, dev->devpath, dev->slot_id, dev->state, dev->level);
-
-	if (dev->state != USB_STATE_NOTATTACHED && dev->level == lvl) {
-		if (dev->parent) {
-			ret = usb_remove_device(dev);
-			pr_debug("baikal-kexec - be_usb_down_func: usb_remove_device(0x%p) = %d\n", dev, ret);
-		}
-	}
-	/* Disconnect root hubs */
-	if (lvl == 0 && dev->level == 0) {
-		usb_disconnect(&dev);
-	}
-
-	return 0;
-}
-
-static int be_get_max_lvl_usb(void)
-{
-	int max_lvl = 0;
-
-	usb_for_each_dev((void *)(&max_lvl), be_usb_maxlvl_func);
-
-	return max_lvl;
-}
-
-static int baikal_kexec_usb_down(void)
-{
-	int usb_lvl = 0;
-	int maxlvl = 0;
-	int ret = 0;
-
-	pr_info("baikal-kexec: baikal_kexec_usb_down\n");
-
-	maxlvl = be_get_max_lvl_usb();
-	if (maxlvl > BE_KEXEC_MAX_USB_LVL) {
-		pr_info("baikal-kexec - baikal_kexec_usb_down: max configured USB device level %d!!!\n", maxlvl);
-		return -1;
-	}
-	for (usb_lvl = maxlvl; usb_lvl >= 0; usb_lvl--) {
-		ret = usb_for_each_dev((void *)(&usb_lvl), be_usb_down_func);
-		if (ret != 0)
-			pr_err("baikal-kexec - baikal_kexec_usb_down: usb down error: %d\n", ret);
-	}
-
-	/* code from drivers/usb/core/usb.c "static void __exit usb_exit(void)" */
-	usb_deregister_device_driver(&usb_generic_driver);
-	usb_major_cleanup();
-	usb_devio_cleanup();
-	usb_hub_cleanup();
-	bus_unregister(&usb_bus_type);
-
-	return ret;
-}
-
 
 /*
  * Boot parameter processing
@@ -377,15 +289,7 @@ int baikal_kexec_prepare(struct kimage *kimage)
 
 void baikal_kexec_shutdown(void)
 {
-	int ret = 0;
-
 	pr_info("baikal-kexec: baikal_kexec_shutdown\n");
-
-	/* Shutdown USB */
-	ret = baikal_kexec_usb_down();
-	if (ret) {
-		pr_err("baikal-kexec - baikal_kexec_shutdown: usb_down() failed, ret = %d\n", ret);
-	}
 
 	/* Reset PCIe */
 	/* dw_pcie_kexec_prepare(); */
