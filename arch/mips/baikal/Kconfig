@@ -303,6 +303,17 @@ config ARCH_NR_GPIO
 
       If unsure, leave the default value.
 
+config PCIE_BAIKAL_INIT
+     bool "Init Baikal-T(1) PCIe host controller pmu/phy"
+     depends on PCI
+     default y
+     help
+       Say N here to skip the DW PCIe host controller PMU/PHY initialization
+       code. This may be required in case if the controller has already been
+       initialized by a bootloader.
+
+       Say N only if the PCIe host controller is surely pre-initialized.
+
 menuconfig BAIKAL_ERRATA
     bool "Baikal-T SoC Errata Fix"
     help

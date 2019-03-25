@@ -23,6 +23,7 @@ cflags-y += -I$(srctree)/arch/mips/include/asm/mach-baikal
 obj-y				:= baikal-init.o baikal-int.o baikal-memory.o \
 				   baikal-setup.o baikal-time.o \
 				   baikal-apb.o baikal-axi.o baikal-emc.o
+obj-$(CONFIG_PCIE_BAIKAL_INIT)	+= baikal-pci.o
 
 obj-$(CONFIG_EARLY_PRINTK)	+= baikal-console.o
 obj-$(CONFIG_OF)		+= baikal-of.o
