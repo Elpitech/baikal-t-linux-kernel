@@ -31,7 +31,7 @@
 
 #define VERSION	"2.0"
 
-#define PLL_FREQ_MAX	1300000	/* KHz */
+#define PLL_FREQ_MAX	1200000	/* KHz */
 #define PLL_FREQ_MIN	200000	/* KHz */
 #define PLL_FREQ_STEP	25000	/* KHz */
 
