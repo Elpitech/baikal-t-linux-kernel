@@ -45,11 +45,14 @@ static int dw_baikal_pcie_link_up(struct pcie_port *pp)
 		(!(val & PCIE_PHY_DEBUG_R1_LINK_IN_TRAINING)));
 }
 
-static irqreturn_t dw_plat_pcie_msi_irq_handler(int irq, void *arg)
+static void dw_plat_pcie_msi_irq_handler(struct irq_desc *desc)
 {
-	struct pcie_port *pp = arg;
+	struct pcie_port *pp = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 
-	return dw_handle_msi_irq(pp);
+	chained_irq_enter(chip, desc);
+	(void)dw_handle_msi_irq(pp);
+	chained_irq_exit(chip, desc);
 }
 
 static void dw_plat_pcie_host_init(struct pcie_port *pp)
@@ -78,14 +81,8 @@ static int dw_plat_add_pcie_port(struct pcie_port *pp,
 		if (pp->msi_irq < 0)
 			return pp->msi_irq;
 
-		ret = devm_request_irq(dev, pp->msi_irq,
-					dw_plat_pcie_msi_irq_handler,
-					IRQF_SHARED | IRQF_NO_THREAD,
-					"dw-plat-pcie-msi", pp);
-		if (ret) {
-			dev_err(dev, "failed to request MSI IRQ\n");
-			return ret;
-		}
+		irq_set_chained_handler_and_data(pp->msi_irq,
+					dw_plat_pcie_msi_irq_handler, pp);
 	}
 
 	pp->root_bus_nr = -1;
