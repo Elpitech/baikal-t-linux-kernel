@@ -21,6 +21,8 @@
 #include <linux/resource.h>
 #include <linux/signal.h>
 #include <linux/types.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include "pcie-designware.h"
 
@@ -88,9 +90,20 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_plat_pcie *dw_plat_pcie;
+	struct gpio_desc *reset_gpiod;
 	struct pcie_port *pp;
 	struct resource *res;  /* Resource from DT */
 	int ret;
+
+	/* Deassert the optional reset signal */
+	if (dev->of_node) {
+		reset_gpiod = fwnode_get_named_gpiod(&dev->of_node->fwnode,
+			"reset-gpio", 0, GPIOD_OUT_LOW, "PCIe reset");
+		if (PTR_ERR(reset_gpiod) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		else if (!IS_ERR(reset_gpiod))
+			dev_info(dev, "Reset GPIO deasserted\n");
+	}
 
 	dw_plat_pcie = devm_kzalloc(dev, sizeof(*dw_plat_pcie), GFP_KERNEL);
 	if (!dw_plat_pcie)
