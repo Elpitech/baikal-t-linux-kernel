@@ -303,6 +303,17 @@ config ARCH_NR_GPIO
 
       If unsure, leave the default value.
 
+config DW_PCIE_HOST_INIT
+    bool "Init PCIe host controller phy"
+    depends on PCI
+    default y
+    help
+      Say N here to skip the DW PCIe host controller initialization code.
+      This may be required in case if controller has already been initialized
+      by bootloader.
+
+      Say N only if PCI host controller is surely pre-initialized.
+
 menuconfig BAIKAL_ERRATA
     bool "Baikal-T SoC Errata Fix"
     help
