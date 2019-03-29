@@ -28,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
 #include <linux/kgdb.h>
@@ -2303,6 +2304,9 @@ void __init trap_init(void)
 
 		ebase = (unsigned long)
 			__alloc_bootmem(size, 1 << fls(size), 0);
+		if (!ebase)
+			panic("%s: Failed to allocate %lu bytes align=0x%x\n",
+			      __func__, size, 1 << fls(size));
 
 		/*
 		 * Try to ensure ebase resides in KSeg0 if possible.
@@ -2346,6 +2350,7 @@ void __init trap_init(void)
 	if (board_ebase_setup)
 		board_ebase_setup();
 	per_cpu_trap_init(true);
+	memblock_set_bottom_up(false);
 
 	/*
 	 * Copy the generic exception handlers to their final destination.
