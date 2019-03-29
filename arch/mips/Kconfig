@@ -40,6 +40,7 @@ config MIPS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select IRQ_FORCED_THREADING
 	select HAVE_MEMBLOCK
+	select NO_BOOTMEM
 	select HAVE_MEMBLOCK_NODE_MAP
 	select ARCH_DISCARD_MEMBLOCK
 	select GENERIC_SMP_IDLE_THREAD
@@ -88,6 +89,7 @@ config MIPS_GENERIC
 	select HW_HAS_PCI
 	select IRQ_MIPS_CPU
 	select LIBFDT
+	select MIPS_AUTO_PFN_OFFSET
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
 	select MIPS_L1_CACHE_SHIFT_7
@@ -3030,6 +3032,9 @@ config PGTABLE_LEVELS
 	int
 	default 3 if 64BIT && !PAGE_SIZE_64KB
 	default 2
+
+config MIPS_AUTO_PFN_OFFSET
+	bool
 
 source "init/Kconfig"
 
