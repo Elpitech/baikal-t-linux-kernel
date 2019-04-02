@@ -29,6 +29,7 @@ choice
     default MIPS_BAIKAL_T  if MACH_BAIKAL_BFK
     default MIPS_BAIKAL_T1 if MACH_BAIKAL_BFK3
     default MIPS_BAIKAL_T  if MACH_TPLATFORMS_SFBT1
+    default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MSBT2
     default MIPS_BAIKAL_T
 
 config MIPS_BAIKAL_T
@@ -262,6 +263,19 @@ config MACH_TPLATFORMS_SFBT1
     # DTB select
     select DTB_TPLATFORMS_SFBT1
 
+config MACH_TPLATFORMS_MSBT2
+    bool "Baikal-T1 MSBT2 card"
+
+    # Basic SoC features
+    select MIPS_BAIKAL_T1
+    select BAIKAL_T_COMMON
+
+    # Memory mapping granularity
+    select PAGE_SIZE_16KB
+
+    # DTB select
+    select DTB_TPLATFORMS_MSBT2
+
 endchoice
 
 choice
@@ -304,6 +318,11 @@ config DTB_TPLATFORMS_SFBT1
     help
       Device tree for SFBT1 mezzanine card based on Baikal-T SOC.
 
+config DTB_TPLATFORMS_MSBT2
+    bool "Baikal-T1 MSBT2 card"
+    help
+      Device tree for MSBT2 mezzanine card based on Baikal-T1 SOC.
+
 endchoice
 
 config ARCH_NR_GPIO
@@ -312,6 +331,7 @@ config ARCH_NR_GPIO
     default 43 if MACH_BAIKAL_BFK
     default 43 if MACH_BAIKAL_BFK3
     default 51 if MACH_TPLATFORMS_SFBT1
+    default 99 if MACH_TPLATFORMS_MSBT2
     default 35
     help
       Maximum number of GPIOs in the system.
