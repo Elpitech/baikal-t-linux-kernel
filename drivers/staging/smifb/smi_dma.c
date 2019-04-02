@@ -297,7 +297,8 @@ ssize_t dw_fb_write(struct fb_info *info, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
-	phys_addr_t dst;
+	phys_addr_t pdst;
+	void *vdst;
 	int err = 0;
 	unsigned long pfn;
 	phys_addr_t pbuf;
@@ -327,7 +328,8 @@ ssize_t dw_fb_write(struct fb_info *info, const char __user *buf,
 		count = total_size - p;
 	}
 
-	dst = info->fix.smem_start + p;
+	pdst = info->fix.smem_start + p;
+	vdst = info->screen_buffer + p;
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
@@ -335,12 +337,13 @@ ssize_t dw_fb_write(struct fb_info *info, const char __user *buf,
 	dma_cache_wback_inv((uint32_t)buf, count);
 
 	/* Odd address = can't DMA. Align */
-	if (dst & 3) {
-		lead = 4 - (dst & 3);
-		if (copy_from_user((char *)dst, buf, lead))
+	if (pdst & 3) {
+		lead = 4 - (pdst & 3);
+		if (copy_from_user(vdst, buf, lead))
 			return -EFAULT;
 		buf += lead;
-		dst += lead;
+		pdst += lead;
+		vdst += lead;
 	}
 	/* DMA resolution is 32 bits */
 	if ((count - lead) & 3)
@@ -357,7 +360,7 @@ ssize_t dw_fb_write(struct fb_info *info, const char __user *buf,
 		return -EFAULT;
 	}
 
-	err = sm_dma_start(info, pbuf /* MEM */, dst /* PCI */, dma_size /*size*/);
+	err = sm_dma_start(info, pbuf /* MEM */, pdst /* PCI */, dma_size /*size*/);
 
 	if  (!err)
 		*ppos += count;
