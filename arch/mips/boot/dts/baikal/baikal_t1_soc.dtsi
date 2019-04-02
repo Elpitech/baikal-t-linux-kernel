@@ -64,7 +64,6 @@
 	gic_wdt: gic_wdt {
 		compatible = "be,gic-wdt";
 		interrupts = <GIC_LOCAL 0 IRQ_TYPE_NONE>;
-		clock-frequency = <600000000>;
 		clocks = <&gic_clk 0>;
 		clock-names = "gicclk";
 	};
@@ -79,7 +78,6 @@
 		timer:timer {
 			compatible = "mti,gic-timer";
 			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
-			clock-frequency = <600000000>;
 			clocks = <&gic_clk 0>;
 			clock-names = "gicclk";
 		};
@@ -124,7 +122,6 @@
 			clocks = <&dma_clk 0>;
 			clock-names = "hclk";
 		};
-
 
 		emc@1F042000 {
 			compatible = "be,emc", "be,memory-controller";
@@ -413,11 +410,10 @@
 			interrupts = <GIC_SHARED 40 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&spi0_clk 0>;
 			clock-names = "spi0clk";
-			status = "disabled";
-
 			dmas = <&dma 8 0 1>,  /* tx, mem2dev, (dst id = 8) (mem master = 0) (periph master = 1) */
 			       <&dma 9 0 1>;  /* rx, dev2mem, (src id = 9) (mem master = 0) (periph master = 1) */
 			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		spi1: spi1@1F04F000 {
@@ -429,18 +425,17 @@
 			interrupts = <GIC_SHARED 41 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&spi1_clk 0>;
 			clock-names = "spi1clk";
-			status = "disabled";
-
 			dmas = <&dma 10 0 1>,  /* tx, mem2dev, (dst id = 10) (mem master = 0) (periph master = 1) */
 			       <&dma 11 0 1>;  /* rx, dev2mem, (src id = 11) (mem master = 0) (periph master = 1) */
 			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		spi2: spi2@1F040100 {
+			compatible = "snps,dw-apb-ssi", "snps,dw-spi-boot";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg-io-width = <4>;
-			compatible = "snps,dw-apb-ssi", "snps,dw-spi-boot";
 			reg = <0x1F040100 0xF00>;
 			clocks = <&boot_clk 0>;
 			clock-names = "bootclk";

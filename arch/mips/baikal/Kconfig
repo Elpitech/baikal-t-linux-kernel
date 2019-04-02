@@ -60,8 +60,6 @@ config BAIKAL_T_COMMON
     # Hardware features
     select HW_HAS_PCI
     select HW_PERF_EVENTS
-    select CPU_FREQ_GOV_PERFORMANCE
-    select CPU_FREQ_GOV_POWERSAVE
 
     # Common
     select PHYLIB
@@ -154,13 +152,12 @@ config MACH_BAIKAL_BFK3
     # Memory mapping granularity
     select PAGE_SIZE_16KB
 
-    # DTB select
-    select DTB_BAIKAL_BFK3
-
     # MMC
     select MMC
     select MMC_SPI
 
+    # DTB select
+    select DTB_BAIKAL_BFK3
 
 config MACH_BAIKAL_QEMU
     bool "Baikal-T QEMU simulator"
@@ -288,8 +285,6 @@ config DTB_BAIKAL_FPGA
       Device tree for Baikal-T FPGA prototype. Simple device
       configuration.
 
-help
-  Select device tree for Baikal-T/T1 SOC based board
 endchoice
 
 config ARCH_NR_GPIO
@@ -323,6 +318,7 @@ if BAIKAL_ERRATA
 
 config BAIKAL_ERRATA_GMAC
     bool "Fix for GMAC block speed 10/100M"
+    default y if MIPS_BAIKAL_T
     help
       Fix for GMAC block speed 10/100M in early Baikal-T SoCs
 
