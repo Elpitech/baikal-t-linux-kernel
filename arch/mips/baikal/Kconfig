@@ -34,6 +34,7 @@ choice
 				MACH_TPLATFORMS_AXT1_MSBT2 || MACH_TPLATFORMS_CNC_MSBT2
     default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MRBT1 || MACH_TPLATFORMS_BC3BT1_MRBT1
     default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MITX
+    default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_RT1MB
     default MIPS_BAIKAL_T
 
 config MIPS_BAIKAL_T
@@ -306,6 +307,19 @@ config MACH_TPLATFORMS_MITX
     # DTB select
     select DTB_TPLATFORMS_MITX
 
+config MACH_TPLATFORMS_RT1MB
+    bool "Baikal-T1 RT1MB board"
+
+    # Basic SoC features
+    select MIPS_BAIKAL_T1
+    select BAIKAL_T_COMMON
+
+    # Memory mapping granularity
+    select PAGE_SIZE_16KB
+
+    # DTB select
+    select DTB_TPLATFORMS_RT1MB
+
 config MACH_TPLATFORMS_TC_SFBT1
     bool "Baikal-T Tclient SFBT1 board"
 
@@ -454,6 +468,11 @@ config DTB_TPLATFORMS_MITX
     help
       Device tree for MITX board based on Baikal-T1 SOC.
 
+config DTB_TPLATFORMS_RT1MB
+    bool "Baikal-T1 RT1MB board"
+    help
+      Device tree for RT1MB board based on Baikal-T1 SOC.
+
 config DTB_TPLATFORMS_TC_SFBT1
     bool "Baikal-T Tclient SFBT1 board"
     help
@@ -500,6 +519,7 @@ config ARCH_NR_GPIO
     default 99 if MACH_TPLATFORMS_MSBT2
     default 59 if MACH_TPLATFORMS_MRBT1
     default 43 if MACH_TPLATFORMS_MITX
+    default 43 if MACH_TPLATFORMS_RT1MB
     default 75 if MACH_TPLATFORMS_TC_SFBT1 || MACH_TPLATFORMS_TC_MSBT2
     default 83 if MACH_TPLATFORMS_AXT1_SFBT1 || MACH_TPLATFORMS_AXT1_MSBT2
     default 91 if MACH_TPLATFORMS_BC3BT1_MRBT1
