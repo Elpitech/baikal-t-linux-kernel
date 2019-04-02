@@ -28,8 +28,10 @@ choice
     prompt "Baikal-T SoC Family Support"
     default MIPS_BAIKAL_T  if MACH_BAIKAL_BFK
     default MIPS_BAIKAL_T1 if MACH_BAIKAL_BFK3
-    default MIPS_BAIKAL_T  if MACH_TPLATFORMS_SFBT1 || MACH_TPLATFORMS_TC_SFBT1
-    default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MSBT2 || MACH_TPLATFORMS_TC_MSBT2
+    default MIPS_BAIKAL_T  if MACH_TPLATFORMS_SFBT1 || MACH_TPLATFORMS_TC_SFBT1 || \
+				MACH_TPLATFORMS_AXT1_SFBT1
+    default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MSBT2 || MACH_TPLATFORMS_TC_MSBT2 || \
+				MACH_TPLATFORMS_AXT1_MSBT2
     default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MRBT1
     default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MITX
     default MIPS_BAIKAL_T
@@ -330,6 +332,32 @@ config MACH_TPLATFORMS_TC_MSBT2
     # DTB select
     select DTB_TPLATFORMS_TC_MSBT2
 
+config MACH_TPLATFORMS_AXT1_SFBT1
+    bool "Baikal-T Axitech v1 SFBT1 board"
+
+    # Basic SoC features
+    select MIPS_BAIKAL_T
+    select BAIKAL_T_COMMON
+
+    # Memory mapping granularity
+    select PAGE_SIZE_16KB
+
+    # DTB select
+    select DTB_TPLATFORMS_AXT1_SFBT1
+
+config MACH_TPLATFORMS_AXT1_MSBT2
+    bool "Baikal-T1 Axitech v1 MSBT2 board"
+
+    # Basic SoC features
+    select MIPS_BAIKAL_T1
+    select BAIKAL_T_COMMON
+
+    # Memory mapping granularity
+    select PAGE_SIZE_16KB
+
+    # DTB select
+    select DTB_TPLATFORMS_AXT1_MSBT2
+
 endchoice
 
 choice
@@ -397,6 +425,16 @@ config DTB_TPLATFORMS_TC_MSBT2
     help
       Device tree for Tclient MSBT2 board based on Baikal-T1 SOC.
 
+config DTB_TPLATFORMS_AXT1_SFBT1
+    bool "Baikal-T Axitech v1 SFBT1 board"
+    help
+      Device tree for Axitech v1 SFBT1 board based on Baikal-T SOC.
+
+config DTB_TPLATFORMS_AXT1_MSBT2
+    bool "Baikal-T1 Axitech v1 MSBT2 board"
+    help
+      Device tree for Axitech v1 MSBT2 board based on Baikal-T1 SOC.
+
 endchoice
 
 config ARCH_NR_GPIO
@@ -409,6 +447,7 @@ config ARCH_NR_GPIO
     default 59 if MACH_TPLATFORMS_MRBT1
     default 43 if MACH_TPLATFORMS_MITX
     default 75 if MACH_TPLATFORMS_TC_SFBT1 || MACH_TPLATFORMS_TC_MSBT2
+    default 83 if MACH_TPLATFORMS_AXT1_SFBT1 || MACH_TPLATFORMS_AXT1_MSBT2
     default 35
     help
       Maximum number of GPIOs in the system.
