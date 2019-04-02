@@ -32,7 +32,7 @@ choice
 				MACH_TPLATFORMS_AXT1_SFBT1 || MACH_TPLATFORMS_CNC_SFBT1
     default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MSBT2 || MACH_TPLATFORMS_TC_MSBT2 || \
 				MACH_TPLATFORMS_AXT1_MSBT2 || MACH_TPLATFORMS_CNC_MSBT2
-    default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MRBT1
+    default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MRBT1 || MACH_TPLATFORMS_BC3BT1_MRBT1
     default MIPS_BAIKAL_T1 if MACH_TPLATFORMS_MITX
     default MIPS_BAIKAL_T
 
@@ -358,6 +358,19 @@ config MACH_TPLATFORMS_AXT1_MSBT2
     # DTB select
     select DTB_TPLATFORMS_AXT1_MSBT2
 
+config MACH_TPLATFORMS_BC3BT1_MRBT1
+    bool "Baikal-T1 Axitech BC3BT1 MRBT1 board"
+
+    # Basic SoC features
+    select MIPS_BAIKAL_T1
+    select BAIKAL_T_COMMON
+
+    # Memory mapping granularity
+    select PAGE_SIZE_16KB
+
+    # DTB select
+    select DTB_TPLATFORMS_BC3BT1_MRBT1
+
 config MACH_TPLATFORMS_CNC_SFBT1
     bool "Baikal-T CNC SFBT1 boards"
 
@@ -461,6 +474,11 @@ config DTB_TPLATFORMS_AXT1_MSBT2
     help
       Device tree for Axitech v1 MSBT2 board based on Baikal-T1 SOC.
 
+config DTB_TPLATFORMS_BC3BT1_MRBT1
+    bool "Baikal-T1 Axitech BC3BT1 MRBT1 board"
+    help
+      Device tree for Axitech BC3BT1 MRBT1 board based on Baikal-T1 SOC.
+
 config DTB_TPLATFORMS_CNC_SFBT1
     bool "Baikal-T CNC SFBT1 boards"
     help
@@ -484,6 +502,7 @@ config ARCH_NR_GPIO
     default 43 if MACH_TPLATFORMS_MITX
     default 75 if MACH_TPLATFORMS_TC_SFBT1 || MACH_TPLATFORMS_TC_MSBT2
     default 83 if MACH_TPLATFORMS_AXT1_SFBT1 || MACH_TPLATFORMS_AXT1_MSBT2
+    default 91 if MACH_TPLATFORMS_BC3BT1_MRBT1
     default 171 if MACH_TPLATFORMS_CNC_SFBT1 || MACH_TPLATFORMS_CNC_MSBT2
     default 35
     help
