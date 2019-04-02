@@ -28,6 +28,7 @@ choice
     prompt "Baikal-T SoC Family Support"
     default MIPS_BAIKAL_T  if MACH_BAIKAL_BFK
     default MIPS_BAIKAL_T1 if MACH_BAIKAL_BFK3
+    default MIPS_BAIKAL_T  if MACH_TPLATFORMS_SFBT1
     default MIPS_BAIKAL_T
 
 config MIPS_BAIKAL_T
@@ -248,6 +249,19 @@ config MACH_BAIKAL_FPGA
     # DTB select
     select DTB_BAIKAL_FPGA
 
+config MACH_TPLATFORMS_SFBT1
+    bool "Baikal-T SFBT1 card"
+
+    # Basic SoC features
+    select MIPS_BAIKAL_T
+    select BAIKAL_T_COMMON
+
+    # Memory mapping granularity
+    select PAGE_SIZE_16KB
+
+    # DTB select
+    select DTB_TPLATFORMS_SFBT1
+
 endchoice
 
 choice
@@ -285,6 +299,11 @@ config DTB_BAIKAL_FPGA
       Device tree for Baikal-T FPGA prototype. Simple device
       configuration.
 
+config DTB_TPLATFORMS_SFBT1
+    bool "Baikal-T SFBT1 card"
+    help
+      Device tree for SFBT1 mezzanine card based on Baikal-T SOC.
+
 endchoice
 
 config ARCH_NR_GPIO
@@ -292,6 +311,7 @@ config ARCH_NR_GPIO
     range 32 512
     default 43 if MACH_BAIKAL_BFK
     default 43 if MACH_BAIKAL_BFK3
+    default 51 if MACH_TPLATFORMS_SFBT1
     default 35
     help
       Maximum number of GPIOs in the system.
