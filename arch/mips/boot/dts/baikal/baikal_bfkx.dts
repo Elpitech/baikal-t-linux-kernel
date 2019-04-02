@@ -146,6 +146,7 @@
 	rtc@56 {
 		compatible = "abracon,abeoz9s3";
 		reg = <0x56>;
+		trickle-resistor-ohms = <5000>;
 	};
 };
 
@@ -207,34 +208,40 @@
 	num-cs = <1>;
 	status = "okay";
 
-	flash@0 {
+	boot_flash: n25q128a11@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		status = "okay";
-		compatible = "jedec,spi-nor";
+		compatible = "micron,n25q128a11", "jedec,spi-nor";
+		spi-max-frequency = <5000000>;
+		m25p,fast-read;
 		reg = <0>;
-		spi-max-frequency = <100000>;
 
-		/* total size 16MB */
-		part@0 {
-			label = "UBOOT";
-			reg = <0x0 0xa0000>;
+		partition@0 {
+			label = "bootloader";
+			reg = <0x0 0xE0000>;
+			read-only;
 		};
-		part@A0000 {
-			label = "ENVSET";
-			reg = <0xa0000 0x10000>;
+
+		partition@1 {
+			label = "environment";
+			reg = <0xE0000 0x10000>;
 		};
-		part@B0000 {
-			label = "FIRMWARE";
-			reg = <0xb0000 0x10000>;
+
+		partition@2 {
+			label = "information";
+			reg = <0xF0000 0x10000>;
+			read-only;
 		};
-		part@C0000 {
-			label = "FDT";
-			reg = <0xc0000 0x10000>;
+
+		partition@3 {
+			label = "multiimage";
+			reg = <0x100000 0xF00000>;
+			read-only;
 		};
-		part@D0000 {
-			label = "MULTIIMAGE";
-			reg = <0xd0000 0xf30000>;
+
+		partition@4 {
+			label = "firmware";
+			reg = <0x0 0x1000000>;
 		};
 	};
 };
