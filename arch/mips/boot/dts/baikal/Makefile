@@ -13,6 +13,7 @@ dtb-$(CONFIG_DTB_TPLATFORMS_TC_SFBT1)	+= tplatforms_tc-sfbt1.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_TC_MSBT2)	+= tplatforms_tc-msbt2.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_AXT1_SFBT1)	+= tplatforms_axt1-sfbt1.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_AXT1_MSBT2)	+= tplatforms_axt1-msbt2.dtb
+dtb-$(CONFIG_DTB_TPLATFORMS_BC3BT1_MRBT1)	+= tplatforms_bc3bt1-mrbt1.dtb
 dtb-$(CONFIG_DTB_TPLATFORMS_CNC_SFBT1)	+= tplatforms_cnccu-sfbt1.dtb \
 						tplatforms_cnccu3-sfbt1.dtb \
 						tplatforms_cncin-sfbt1.dtb \
@@ -50,6 +51,7 @@ dtb-$(CONFIG_DT_NONE)	+= \
 						tplatforms_tc-msbt2.dtb \
 						tplatforms_axt1-sfbt1.dtb \
 						tplatforms_axt1-msbt2.dtb \
+						tplatforms_bc3bt1-mrbt1.dtb \
 						tplatforms_cnccu-sfbt1.dtb \
 						tplatforms_cnccu3-sfbt1.dtb \
 						tplatforms_cncin-sfbt1.dtb \
