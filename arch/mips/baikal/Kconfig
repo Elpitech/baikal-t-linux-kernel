@@ -78,7 +78,6 @@ config BAIKAL_T_COMMON
 
     # Clock source
     select COMMON_CLK_BAIKAL
-    select WDT_MIPS_GIC
 
     # Serial UART
     select SERIAL_8250
