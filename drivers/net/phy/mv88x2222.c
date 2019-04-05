@@ -407,6 +407,20 @@ static struct phy_driver marvell_drivers[] = {
 		.resume = genphy_resume,
 		.suspend = marvell_suspend
 	},
+	{
+		.phy_id = MARVELL_PHY_ID_88X2222R,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
+		.name = "Marvell 88X2222R",
+		.features = 0,
+		.config_init = marvell_config_init,
+		.config_aneg = marvell_config_aneg,
+		.probe = marvell_probe,
+		.match_phy_device = marvell_match_phy_device,
+		.read_status = marvell_read_status,
+		.soft_reset = marvell_soft_reset,
+		.resume = genphy_resume,
+		.suspend = marvell_suspend
+	}
 };
 module_phy_driver(marvell_drivers);
 
