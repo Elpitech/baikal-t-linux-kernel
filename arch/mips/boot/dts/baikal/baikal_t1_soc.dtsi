@@ -74,6 +74,7 @@
 		reg = <0 0x1BDC0000 0 0x20000>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
+		mti,reserved-ipi-vectors = <108 4>;
 
 		timer:timer {
 			compatible = "mti,gic-timer";
