@@ -534,9 +534,16 @@ static int be_xgbe_xmit_probe(struct xgbe_prv_data *pdata)
 	phydev = of_phy_find_device(xmit_node);
 	if (!phydev)
 		return -EINVAL;
+
+	if (!phydev->drv) {
+		ret = -ENODEV;
+		dev_info(dev, "no phy driver, work in KR/KX mode\n");
+		goto err_put_device;
+	}
+
 	ret = phy_init_hw(phydev);
 	if (ret < 0)
-		return ret;
+		goto err_put_device;
 
 	phydev->speed = SPEED_10000;
 	phydev->duplex = DUPLEX_FULL;
@@ -553,6 +560,11 @@ static int be_xgbe_xmit_probe(struct xgbe_prv_data *pdata)
 		dev_warn(&xmit->dev, "sysfs link to netdevice failed\n");
 #endif
 	return 0;
+
+err_put_device:
+	put_device(&phydev->mdio.dev);
+
+	return ret;
 }
 
 void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *phy_if)
