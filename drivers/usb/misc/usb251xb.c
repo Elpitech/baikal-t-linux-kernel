@@ -526,11 +526,15 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 			      (wchar_t *)hub->serial,
 			      USB251XB_STRING_BUFSIZE);
 
+	/*
+	 * The datasheet documents the register as 'Port Swap' but in real the
+	 * register controls the USB DP/DM signal swapping for each port.
+	 */
 	hub->port_swap = USB251XB_DEF_PORT_SWAP;
-	if (of_get_property(np, "us-lanes-inverted", NULL))
+	usb251xb_get_ports_field(hub, "swap-dx-lanes", data->port_cnt,
+				 &hub->port_swap);
+	if (of_get_property(np, "swap-us-lanes", NULL))
 		hub->port_swap |= BIT(0);
-	usb251xb_get_ports_field(hub, "ds-lanes-interted", data->port_cnt,
-				 &hub->non_rem_dev);
 
 	/* The following parameters are currently not exposed to devicetree, but
 	 * may be as soon as needed.
