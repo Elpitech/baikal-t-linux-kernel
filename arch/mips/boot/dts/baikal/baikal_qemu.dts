@@ -18,8 +18,8 @@
 / {
 	model = "Baikal-T QEMU Simulator";
 	compatible = "baikal,mips";
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 	interrupt-parent = <&gic>;
 
 	aliases {
@@ -37,8 +37,8 @@
 
 	chosen {
 		bootargs = "root=/dev/ram rw console=ttyS0,mmio32,115200 earlyprintk=uart8250,mmio32,0x1F04A000,115200";
-		linux,initrd-start = <0x01000000>;
-		linux,initrd-end   = <0x03000000>;
+		linux,initrd-start = <0 0x01000000>;
+		linux,initrd-end   = <0 0x03000000>;
 	};
 
 	cpus {
@@ -64,13 +64,13 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0x08000000>,
-		      <0x20000000 0x40000000>;
+		reg = <0 0x00000000 0 0x08000000>,
+		      <0 0x20000000 0 0x40000000>;
 	};
 
 	gic: gic@1BDC0000 {
 		compatible = "mti,gic";
-		reg = <0x1BDC0000 0x20000>;
+		reg = <0 0x1BDC0000 0 0x20000>;
 
 		interrupt-controller;
 		#interrupt-cells = <3>;
@@ -91,7 +91,7 @@
 		#size-cells = <1>;
 		interrupt-parent = <&gic>;
 
-		ranges;
+		ranges = <0x08000000 0 0x08000000 0x18000000>;
 
 		dma: dma@1f041000 {
 			compatible = "snps,dma-spear1340";
