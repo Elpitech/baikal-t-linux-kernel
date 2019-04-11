@@ -50,7 +50,7 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	if (base + size - 1 >= PHYS_ADDR_MAX || base + size < base) {
 		pr_warn("Truncate memory region %llx @ %llx to size %llx\n",
 			size, base, (PHYS_ADDR_MAX - base) - 1);
-		size = (PHYS_ADDR_MAX - base) - 1;
+		size = PHYS_ADDR_MAX - base;
 	}
 
 	add_memory_region(base, size, BOOT_MEM_RAM);
