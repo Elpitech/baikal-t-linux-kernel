@@ -14,8 +14,8 @@
 #include <dt-bindings/interrupt-controller/mips-gic.h>
 #include <dt-bindings/gpio/gpio.h>
 
-#include  "baikal_t1_soc.dtsi"
-#include  "baikal_mdio.dtsi"
+#include "baikal_t1_soc.dtsi"
+#include "baikal_mdio.dtsi"
 
 / {
 	model = "Baikal-T1 RT1MB board";

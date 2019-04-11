@@ -72,7 +72,7 @@
 };
 
 &porta {
-	sd_reset {
+	m2_reset {
 		line-name = "m2-full-pwr-off";
 		gpio-hog;
 		gpios = <22 GPIO_ACTIVE_LOW>;
