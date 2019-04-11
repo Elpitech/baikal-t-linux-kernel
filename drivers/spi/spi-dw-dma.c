@@ -218,8 +218,7 @@ static bool can (
 static int setup (struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	u16 dma_ctrl = 0;
-	u32 cr0;
-	u32 tmode;
+	u32 tmode, cr0;
 
 	/* clear */
 	// todo: dont clean all regs

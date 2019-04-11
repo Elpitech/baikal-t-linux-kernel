@@ -3,7 +3,6 @@
 
 #include <linux/io.h>
 #include <linux/scatterlist.h>
-#include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <asm/mach-baikal/bc.h>
 
@@ -126,16 +125,13 @@ struct dw_spi {
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 	u32			current_freq;	/* frequency in hz */
 
-	 /* Poll-transfer tasklet */
-	struct tasklet_struct	poll_transfer;
-
 	/* DMA info */
 	int			dma_inited;
 	struct dma_chan		*txchan;
 	struct dma_chan		*rxchan;
 	unsigned long		dma_chan_busy;
 	dma_addr_t		dma_addr; /* phy address of the Data register */
-	struct dw_spi_dma_ops	*dma_ops;
+	const struct dw_spi_dma_ops *dma_ops;
 	void			*dma_tx;
 	void			*dma_rx;
 

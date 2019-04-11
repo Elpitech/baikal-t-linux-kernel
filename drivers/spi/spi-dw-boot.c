@@ -105,6 +105,7 @@ static int boot_spi_write(struct spi_master *master, int chip_select,
         ;
 
     local_irq_restore(flags);          /* Critical section - OFF */
+    preempt_check_resched();
 
     udelay(10);                                     /* don't delete */
 
@@ -114,10 +115,10 @@ static int boot_spi_write(struct spi_master *master, int chip_select,
 static int boot_spi_read(struct spi_master *master, int chip_select,
     const uint8_t* tx, uint8_t* rx, int lentx, int lenrx)
 {
+    int i;
     uint8_t* const rxend = rx + lenrx;
     struct dw_boot_spi *dws;
     unsigned long flags;
-    int i;
 
     local_irq_save(flags);               /* Critical section - ON */
 
@@ -146,6 +147,7 @@ static int boot_spi_read(struct spi_master *master, int chip_select,
     }
 
     local_irq_restore(flags);          /* Critical section - OFF */
+    preempt_check_resched();
 
     return 0;
 }
@@ -500,6 +502,8 @@ static int remove(struct platform_device *pdev)
     struct dw_boot_spi *dws = platform_get_drvdata(pdev);
 
     clk_disable_unprepare(dws->clk);
+    spi_boot_enable_chip(dws, 0);
+    spi_boot_set_clk(dws, 0);
     be_bc_disable_spi(dws->bc);
 
     return 0;

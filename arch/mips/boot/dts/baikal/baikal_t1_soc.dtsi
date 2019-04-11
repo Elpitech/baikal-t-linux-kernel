@@ -430,7 +430,7 @@
 		};
 
 		spi2: spi2@1F040100 {
-			compatible = "snps,dw-apb-ssi-boot", "snps,dw-spi-boot";
+			compatible = "snps,dw-apb-ssi", "snps,dw-spi-boot";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg-io-width = <4>;
