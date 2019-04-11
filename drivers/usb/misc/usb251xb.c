@@ -331,23 +331,19 @@ out_err:
 }
 
 #ifdef CONFIG_OF
-static void usb251xb_get_ports_field(struct usb251xb *hub, const char *prop,
+static void usb251xb_get_ports_field(struct usb251xb *hub, const char *prop_name,
 				     u8 port_cnt, u8 *fld)
 {
 	struct device *dev = hub->dev;
-	const u32 *cproperty_u32;
-	int len, i;
+	struct property *prop;
+	const __be32 *p;
+	u32 port;
 
-	cproperty_u32 = of_get_property(dev->of_node, prop, &len);
-	if (cproperty_u32 && (len / sizeof(u32)) > 0) {
-		for (i = 0; i < len / sizeof(u32); i++) {
-			u32 port = be32_to_cpu(cproperty_u32[i]);
-
-			if ((port >= 1) && (port <= port_cnt))
-				*fld |= BIT(port);
-			else
-				dev_warn(dev, "port %u doesn't exist\n", port);
-		}
+	of_property_for_each_u32(dev->of_node, prop_name, prop, p, port) {
+		if ((port >= 1) && (port <= port_cnt))
+			*fld |= BIT(port);
+		else
+			dev_warn(dev, "port %u doesn't exist\n", port);
 	}
 }
 
