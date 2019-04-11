@@ -187,7 +187,7 @@
 		#size-cells = <1>;
 		compatible = "micron,n25q128a11", "jedec,spi-nor";
 		reg = <0>;
-		spi-max-frequency = <500000>;
+		spi-max-frequency = <5000000>;
 		m25p,fast-read;
 
 		partition@0 {

@@ -187,7 +187,7 @@
 		/* First revision had mt25qu128 */
 		compatible = "micron,w25q128fw", "jedec,spi-nor";
 		reg = <0>;
-		spi-max-frequency = <500000>;
+		spi-max-frequency = <5000000>;
 		m25p,fast-read;
 
 		partition@0 {
