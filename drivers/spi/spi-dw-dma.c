@@ -12,7 +12,6 @@
 #include <linux/delay.h>
 
 
-#define DESC_DATA_SIZE   (4*1024)
 #define RX_BUSY     0
 #define TX_BUSY     1
 
@@ -56,20 +55,11 @@ static void rx_done (void *arg)
 {
 	struct dw_spi *dws = arg;
 	spi_wait_status(dws);
-
-	size_t len = min(dws->len, DESC_DATA_SIZE);
-	dws->len -= len;
-	dws->rx  += len;
-
-	if(!dws->len){
-		clear_bit(RX_BUSY, &dws->dma_chan_busy);
-		if (test_bit(TX_BUSY, &dws->dma_chan_busy))
-			return;
-		channel_free(dws);
-		spi_finalize_current_transfer(dws->master);
-	}else{
-		transfer(dws, NULL);  /* next part */
-	}
+	clear_bit(RX_BUSY, &dws->dma_chan_busy);
+	if (test_bit(TX_BUSY, &dws->dma_chan_busy))
+		return;
+	channel_free(dws);
+	spi_finalize_current_transfer(dws->master);
 }
 
 static struct dma_async_tx_descriptor *prepare_tx (
@@ -80,7 +70,7 @@ static struct dma_async_tx_descriptor *prepare_tx (
 	struct dma_slave_config config = {0};
 	int ret;
 
-	if (!dws->tx)
+	if (!xfer->tx_buf)
 		return NULL;
 
 	/* slave config */
@@ -121,7 +111,7 @@ static struct dma_async_tx_descriptor *prepare_rx (
 	struct dma_slave_config config = {0};
 	int ret;
 
-	if (!dws->rx)
+	if (!xfer->rx_buf)
 		return NULL;
 
 	/* slave config */
@@ -137,11 +127,6 @@ static struct dma_async_tx_descriptor *prepare_rx (
 		dev_err(&dws->master->dev, "Failed to set DMA config\n");
 		return NULL;
 	}
-
-	size_t len = min(dws->len,DESC_DATA_SIZE);
-	spi_enable_chip(dws, 0);
-	dw_writel(dws, DW_SPI_CTRL1, len-1);
-	spi_enable_chip(dws, 1);
 
 	/* descriptor */
 	desc = dmaengine_prep_slave_sg(dws->rxchan,
