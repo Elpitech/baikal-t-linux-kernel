@@ -345,7 +345,7 @@
 			clocks = <&div_156m 0>;
 			clock-names = "div156m";
 			#clock-cells = <0>;
-			clock-div = <4>;
+			clock-div = <1>;
 			clock-mult = <1>;
 			clock-output-names = "xgmacptp";
 			clock-output = "ptp_clk";
