@@ -24,6 +24,7 @@
 #include "spi-dw.h"
 
 #define DRIVER_NAME "dw_spi_mmio_dma"
+#define MAX_DMA_LEN SZ_4K
 
 void spi_dma_init (struct dw_spi *dws);
 
@@ -76,6 +77,7 @@ static int dw_spi_mmio_dma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	dws->max_dma_len = MAX_DMA_LEN;
 	dws->bus_num = of_alias_get_id(pdev->dev.of_node, "ssi");
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
 	device_property_read_u32(&pdev->dev, "reg-io-width", &dws->reg_io_width);
