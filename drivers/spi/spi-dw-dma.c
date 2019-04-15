@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 
 
+#define DESC_DATA_SIZE   (4*1024)
 #define RX_BUSY     0
 #define TX_BUSY     1
 
@@ -77,17 +78,27 @@ static void rx_done (void *arg)
 
 	struct dw_spi *dws = arg;
 	spi_wait_status(dws);
-	clear_bit(RX_BUSY, &dws->dma_chan_busy);
-	if (test_bit(TX_BUSY, &dws->dma_chan_busy))
-		return;
-	spi_finalize_current_transfer(dws->master);
+
+	size_t len = min(dws->len, DESC_DATA_SIZE);
+	dws->len -= len;
+	dws->rx  += len;
+
+	if(!dws->len){
+		clear_bit(RX_BUSY, &dws->dma_chan_busy);
+		if (test_bit(TX_BUSY, &dws->dma_chan_busy))
+			return;
+		channel_free(dws);
+		spi_finalize_current_transfer(dws->master);
+	}else{
+		transfer(dws, NULL);  /* next part */
+	}
 }
 
 static struct dma_async_tx_descriptor *prepare_tx (
 	struct dw_spi       *dws,
 	struct spi_transfer *xfer)
 {
-	if (!xfer->tx_buf)
+	if (!dws->tx)
 		return NULL;
 
 
@@ -111,8 +122,8 @@ static struct dma_async_tx_descriptor *prepare_tx (
 	struct dma_async_tx_descriptor *desc;
 	desc = dmaengine_prep_slave_single(
 		dws->txchan,					// chan
-		(void*)((int)xfer->tx_buf & 0x1FFFFFFF),	// buf
-		xfer->len,					// len
+		(void*)((int)dws->tx & 0x1FFFFFFF),	// buf
+		dws->len,					// len
 		DMA_MEM_TO_DEV,					// dir
 		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);		// flags
 	if (!desc)
@@ -129,7 +140,7 @@ static struct dma_async_tx_descriptor *prepare_rx (
 	struct dw_spi       *dws,
 	struct spi_transfer *xfer)
 {
-	if (!xfer->rx_buf)
+	if (!dws->rx)
 		return NULL;
 
 	/* slave config */
@@ -148,13 +159,17 @@ static struct dma_async_tx_descriptor *prepare_rx (
 
 	dmaengine_slave_config(dws->rxchan, &config);
 
+	size_t len = min(dws->len,DESC_DATA_SIZE);
+	spi_enable_chip(dws, 0);
+	dw_writel(dws, DW_SPI_CTRL1, len-1);
+	spi_enable_chip(dws, 1);
 
 	/* descriptor */
 	struct dma_async_tx_descriptor *desc;
 	desc = dmaengine_prep_slave_single(
 		dws->rxchan,					// chan
-		(void*)((int)xfer->rx_buf & 0x1FFFFFFF),	// buf
-		xfer->len,					// len
+		(void*)((int)dws->rx & 0x1FFFFFFF),	// buf
+		len,					// len
 		DMA_DEV_TO_MEM,					// dir
 		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);		// flags
 	if (!desc)
