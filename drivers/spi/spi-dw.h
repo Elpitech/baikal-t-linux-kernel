@@ -122,6 +122,7 @@ struct dw_spi {
 	int			dma_mapped;
 	u8			n_bytes;	/* current is a 1/2 bytes op */
 	u32			dma_width;
+	size_t			max_dma_len;
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 	u32			current_freq;	/* frequency in hz */
 
