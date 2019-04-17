@@ -211,7 +211,7 @@ static int setup (struct dw_spi *dws, struct spi_transfer *xfer)
 
 	/* DMATDLR */
 	dw_writel(dws, DW_SPI_DMATDLR, dws->fifo_len/2);
-	dw_writel(dws, DW_SPI_DMARDLR, dws->fifo_len/2 -1);
+	dw_writel(dws, DW_SPI_DMARDLR, 0);
 
 	/* DMACR */
 	if(dws->tx)
