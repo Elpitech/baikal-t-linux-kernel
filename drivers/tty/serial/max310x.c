@@ -699,10 +699,16 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 			port->icount.overrun++;
 		}
 
-		for (i = 0; i < rxlen; ++i) {
-			uart_insert_char(port, sts, MAX310X_LSR_RXOVR_BIT,
-					 one->rd_buf[i + 1], flag);
+		for (i = 0; i < (rxlen - 1); ++i) {
+			uart_insert_char(port, sts, 0, one->rd_buf[i + 1], flag);
 		}
+		/*
+		 * Handle the overrun case for the last character only, since
+		 * the RxFIFO overflow happens after it is pushed to the FIFO
+		 * tail.
+		 */
+		uart_insert_char(port, sts, MAX310X_LSR_RXOVR_BIT,
+				 one->rd_buf[rxlen], flag);
 
 	} else {
 		if (unlikely(rxlen >= port->fifosize)) {
