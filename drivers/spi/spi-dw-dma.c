@@ -12,7 +12,6 @@
 #include <linux/delay.h>
 
 
-#define DESC_DATA_SIZE   ((size_t)4*1024)
 #define RX_BUSY     0
 #define TX_BUSY     1
 
@@ -55,22 +54,12 @@ static void tx_done (void *arg)
 static void rx_done (void *arg)
 {
 	struct dw_spi *dws = arg;
-	size_t len;
 	spi_wait_status(dws);
-
-	len = min(dws->len, DESC_DATA_SIZE);
-	dws->len -= len;
-	dws->rx  += len;
-
-	if(!dws->len){
-		clear_bit(RX_BUSY, &dws->dma_chan_busy);
-		if (test_bit(TX_BUSY, &dws->dma_chan_busy))
-			return;
-		channel_free(dws);
-		spi_finalize_current_transfer(dws->master);
-	}else{
-		transfer(dws, NULL);  /* next part */
-	}
+	clear_bit(RX_BUSY, &dws->dma_chan_busy);
+	if (test_bit(TX_BUSY, &dws->dma_chan_busy))
+		return;
+	channel_free(dws);
+	spi_finalize_current_transfer(dws->master);
 }
 
 static struct dma_async_tx_descriptor *prepare_tx (
@@ -80,7 +69,7 @@ static struct dma_async_tx_descriptor *prepare_tx (
 	struct dma_async_tx_descriptor *desc;
 	struct dma_slave_config config;
 
-	if (!dws->tx)
+	if (!xfer->tx_buf)
 		return NULL;
 
 
@@ -102,8 +91,8 @@ static struct dma_async_tx_descriptor *prepare_tx (
 	/* descriptor */
 	desc = dmaengine_prep_slave_single(
 		dws->txchan,				/* chan */
-		CPHYSADDR(dws->tx),			/* dws->tx, buf_tx */
-		dws->len,				/* len */
+		CPHYSADDR(xfer->tx_buf),		/* dws->tx, buf_tx */
+		xfer->len,				/* len */
 		DMA_MEM_TO_DEV,				/* dir */
 		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);	/* flags */
 	if (!desc)
@@ -122,9 +111,8 @@ static struct dma_async_tx_descriptor *prepare_rx (
 {
 	struct dma_async_tx_descriptor *desc;
 	struct dma_slave_config config;
-	size_t len;
 
-	if (!dws->rx)
+	if (!xfer->rx_buf)
 		return NULL;
 
 	/* slave config */
@@ -142,16 +130,12 @@ static struct dma_async_tx_descriptor *prepare_rx (
 
 	dmaengine_slave_config(dws->rxchan, &config);
 
-	len = min(dws->len,DESC_DATA_SIZE);
-	spi_enable_chip(dws, 0);
-	dw_writel(dws, DW_SPI_CTRL1, len-1);
-	spi_enable_chip(dws, 1);
 
 	/* descriptor */
 	desc = dmaengine_prep_slave_single(
 		dws->rxchan,				/* chan */
-		CPHYSADDR(dws->rx),			/* dws->rx, buf_rx */
-		len,					/* len */
+		CPHYSADDR(xfer->rx_buf),		/* dws->rx, buf_rx */
+		xfer->len,				/* len */
 		DMA_DEV_TO_MEM,				/* dir */
 		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);	/* flags */
 	if (!desc)
