@@ -106,6 +106,7 @@ static int dw_spi_mmio_dma_probe(struct platform_device *pdev)
 
 	spi_dma_init(dws);
 
+	pdev->dev.dma_mask = NULL;
 	ret = dw_spi_add_host(&pdev->dev, dws);
 	if (ret)
 		goto out;
