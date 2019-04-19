@@ -405,10 +405,10 @@
 		};
 
 		spi0: spi0@1F04E000 {
+			compatible = "snps,dw-apb-ssi-dma", "snps,dw-spi";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg-io-width = <4>;
-			compatible = "snps,dw-apb-ssi-dma", "snps,dw-apb-ssi", "snps,dw-spi";
 			reg = <0x1F04E000 0x1000>;
 			interrupts = <GIC_SHARED 40 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&spi0_clk 0>;
@@ -421,10 +421,10 @@
 		};
 
 		spi1: spi1@1F04F000 {
+			compatible = "snps,dw-apb-ssi-dma", "snps,dw-spi";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg-io-width = <4>;
-			compatible = "snps,dw-apb-ssi-dma", "snps,dw-apb-ssi", "snps,dw-spi";
 			reg = <0x1F04F000 0x1000>;
 			interrupts = <GIC_SHARED 41 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&spi1_clk 0>;
