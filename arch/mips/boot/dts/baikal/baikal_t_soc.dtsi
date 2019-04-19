@@ -396,8 +396,8 @@
 			interrupts = <GIC_SHARED 40 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&spi0_clk 0>;
 			clock-names = "spi0clk";
-			dmas = <&dma 8 0 1>,  /* tx, mem2dev, (dst id = 8) (src master = 0,1) (dst master = 0,1) */
-			       <&dma 9 1 0>;  /* rx, dev2mem, (src id = 9) (src master = 0,1) (dst master = 0,1) */
+			dmas = <&dma 8 0 1>,  /* tx, mem2dev, (dst id = 8) (mem master = 0) (periph master = 1) */
+			       <&dma 9 0 1>;  /* rx, dev2mem, (src id = 9) (mem master = 0) (periph master = 1) */
 			dma-names = "tx", "rx";
 			status = "disabled";
 		};
@@ -411,8 +411,8 @@
 			interrupts = <GIC_SHARED 41 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&spi1_clk 0>;
 			clock-names = "spi1clk";
-			dmas = <&dma 10 0 1>,  /* tx, mem2dev, (dst id = 10) (src master = 0,1) (dst master = 0,1) */
-			       <&dma 11 1 0>;  /* rx, dev2mem, (src id = 11) (src master = 0,1) (dst master = 0,1) */
+			dmas = <&dma 10 0 1>,  /* tx, mem2dev, (dst id = 10) (mem master = 0) (periph master = 1) */
+			       <&dma 11 0 1>;  /* rx, dev2mem, (src id = 11) (mem master = 0) (periph master = 1) */
 			dma-names = "tx", "rx";
 			status = "disabled";
 		};
