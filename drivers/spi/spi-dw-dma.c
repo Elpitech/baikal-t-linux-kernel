@@ -243,8 +243,8 @@ static int transfer (struct dw_spi *dws, struct spi_transfer *xfer)
 
 	if (!dws->tx && dws->rx)
 		dw_writel(dws, DW_SPI_DR, 0);  /* write dummy data to start read-only mode */
-	dw_writel(dws, DW_SPI_SER, 1<<1);  /* start spi */
 
+	dw_writel(dws, DW_SPI_SER, BIT(dws->master->cur_msg->spi->chip_select));  /* start spi */
 
 	return 0;
 }
@@ -263,6 +263,8 @@ static void stop (struct dw_spi *dws)
 	}
 	channel_free(dws);
 	dws->dma_inited = 0;
+
+	dev_err(&dws->master->dev, "Disable DW DMA code\n");
 }
 
 static struct dw_spi_dma_ops  dma_ops = {
