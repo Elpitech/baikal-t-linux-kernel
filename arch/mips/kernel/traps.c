@@ -2302,9 +2302,8 @@ void __init trap_init(void)
 		unsigned long size = 0x200 + VECTORSPACING*64;
 		phys_addr_t ebase_pa;
 
-		ebase = (unsigned long)
-			__alloc_bootmem(size, 1 << fls(size), 0);
-		if (!ebase)
+		ebase_pa = memblock_alloc(size, 1 << fls(size));
+		if (!ebase_pa)
 			panic("%s: Failed to allocate %lu bytes align=0x%x\n",
 			      __func__, size, 1 << fls(size));
 
@@ -2319,9 +2318,10 @@ void __init trap_init(void)
 		 * EVA is special though as it allows segments to be rearranged
 		 * and to become uncached during cache error handling.
 		 */
-		ebase_pa = __pa(ebase);
 		if (!IS_ENABLED(CONFIG_EVA) && !WARN_ON(ebase_pa >= 0x20000000))
 			ebase = CKSEG0ADDR(ebase_pa);
+		else
+			ebase = (unsigned long)phys_to_virt(ebase_pa);
 	} else {
 		ebase = CAC_BASE;
 
