@@ -2,9 +2,10 @@
 /*
  * Driver for AX99100 PCI-Serial device
  *
- * Copyright (C) 2018 T-platforms JSC (fancer.lancer@gmail.com)
+ * Copyright (C) 2018-2019 T-platforms JSC (fancer.lancer@gmail.com)
  */
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -24,7 +25,7 @@
  * AX99100 PCI device
  *
  * Asix AX99100 chip is multi-IO PCIe device, which provides an access
- * to Local Bus, Parallal and Serial Ports, SPI, i2c and GPIO interfaces
+ * to Local Bus, Parallel and Serial Ports, SPI, i2c and GPIO interfaces
  * over single PCIe endpoint. The availability of certain ports depends on
  * the chip mode (CHIP_MODE[2-0] pins state):
  * Mode 000 - 1x Local Bus,
@@ -50,7 +51,7 @@
 /*
  * AX99100 SP-PCI resources
  */
-#define PCI_BAR_MASK		BIT(1) | BIT(5)
+#define PCI_BAR_MASK		(BIT(1) | BIT(5))
 #define GPIO_MODE_ANY_NUM	8
 #define GPIO_MODE_SPI_NUM	17
 #define CHIP_MODE_LB		0
@@ -107,7 +108,7 @@
 /*
  * Generic interface registers: GPIO (MMIO - BAR5)
  */
-#define GPIO_SET(_r, _b) 	((_r) | BIT(_b))
+#define GPIO_SET(_r, _b)	((_r) | BIT(_b))
 #define GPIO_CLEAR(_r, _b)	((_r) & ~BIT(_b))
 #define GPIO_CHECK(_r, _b)	(!!((_r) & BIT(_b)))
 #define GPIO_PIN		0x3C0
@@ -119,7 +120,7 @@
 #define  GPIO_EDS_ECSS		BIT(24)
 #define  GPIO_EDS_EOES		BIT(25)
 #define GPIO_EDE		0x3D8
-#define  GPIO_EDE_MR(_r)	(((_r) & GENMASK(31,29)) >> 29)
+#define  GPIO_EDE_MR(_r)	(((_r) & GENMASK(31, 29)) >> 29)
 #define GPIO_CTR		0x3DC
 #define  GPIO_CTR_WE		BIT(24)
 
@@ -174,11 +175,11 @@ struct ax99100_data {
  * automatically handle the full and half-duplex communication protocols
  * like RS485, to suppress an RS485-echos, to set the TXEN/RXEN pin activation
  * delays.
- * 3) Create an adaptive baud rate calculation algo. There is special register,
- * which lets to set the reference clocks source like: basic 1.838235MHz,
- * internal PLL of 125MHz and a custom external clocks EXT_CLK. This feature
- * permits to set the serial port bauds up to 25Mbps (by means of 125MHz clock
- * source).
+ * 3) Create an adaptive baud rate calculation algo. There is a special
+ * register, which lets to set the reference clocks source like: basic
+ * 1.838235MHz, internal PLL of 125MHz and a custom external clocks EXT_CLK.
+ * This feature permits to set the serial port bauds up to 25Mbps (by means of
+ * 125MHz clock source).
  */
 static inline u32 ax99100_sp_read(struct ax99100_data *ax, unsigned long addr)
 {
@@ -197,10 +198,10 @@ static int ax99100_sp_init(struct ax99100_data *ax)
 	int ret = 0;
 	u32 val;
 
-	/* Reset serial port before usage */
+	/* Reset serial port before usage. */
 	ax99100_sp_write(ax, 1, SP_SWRST);
 
-	/* Set the clocks source to be of internal pll with 1838235Hz */
+	/* Set the clocks source to be of internal pll with 1838235Hz. */
 	val = ax99100_sp_read(ax, SP_BCSR);
 	ax99100_sp_write(ax, SP_BCSR_SET(val, SP_BCSR_1_838MHZ), SP_BCSR);
 
@@ -211,12 +212,12 @@ static int ax99100_sp_init(struct ax99100_data *ax)
 	uart.port.irq = ax->pci.irq;
 	uart.port.private_data = ax;
 	uart.port.type = PORT_16C950;
-	/* Default clock source is 1838235 with TCLKR devider being 16 */
+	/* Default clock source is 1838235 with TCLKR devider being 16. */
 	uart.port.uartclk = 115200 * 16;
 	uart.tx_loadsz = 128;
 	uart.port.fifosize = 128;
 
-	uart.port.flags = UPF_HARD_FLOW | UPF_SOFT_FLOW | UPF_SHARE_IRQ | 
+	uart.port.flags = UPF_HARD_FLOW | UPF_SOFT_FLOW | UPF_SHARE_IRQ |
 			  UPF_FIXED_TYPE;
 	uart.capabilities = UART_CAP_FIFO | UART_CAP_EFR | UART_CAP_SLEEP;
 
@@ -245,10 +246,10 @@ static void ax99100_sp_clear(struct ax99100_data *ax)
  * supported for any device mode. GPIOs from 8 to 16 are available for modes
  * 100 and 110. The rest of GPIOs are available for usage only if SPI-function
  * is disabled by EEPROM firmware (this isn't supported at the moment). The
- * GPIO interface functionality is handled by function 0 serial device driver,
- * due to two reasons: IRQs generation is only availabe on function 0, GPIO
- * registers are shared between all PCIe functions so we need to select a single
- * bus-device instance to handle the race condition.
+ * GPIO interface functionality is handled by function 0 serial device driver
+ * due to two reasons: IRQs generation is only available on function 0, GPIO
+ * registers are shared between all PCIe functions so we need to select a
+ * single bus-device instance to handle the race condition.
  *
  * AX99100 GPIOs provides many configurations like: pins current state,
  * direction, open-drain mode and pull-up resisters, edge-triggered maskable
@@ -267,7 +268,7 @@ static inline void ax99100_gpio_write(struct ax99100_data *ax, u32 val,
 	iowrite32(val, ax->pci.im + addr);
 }
 
-static int ax99100_gpio_get_dir(struct gpio_chip *chip, unsigned offset)
+static int ax99100_gpio_get_dir(struct gpio_chip *chip, unsigned int offset)
 {
 	struct ax99100_data *ax = to_ax99100_gpio_chip(chip);
 	u32 val;
@@ -277,13 +278,14 @@ static int ax99100_gpio_get_dir(struct gpio_chip *chip, unsigned offset)
 	return GPIO_CHECK(val, offset);
 }
 
-static int ax99100_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
+static int ax99100_gpio_dir_in(struct gpio_chip *chip, unsigned int offset)
 {
 	struct ax99100_data *ax = to_ax99100_gpio_chip(chip);
 	unsigned long flags;
 	u32 val;
 
-	/* Documentation vaguely states that GPIOs 2 - 5 can't be setup as
+	/*
+	 * Documentation vaguely states that GPIOs 2 - 5 can't be setup as
 	 * inputs due to being used for CHIP_MODE settings latching on reset.
 	 * At the same time examples do use them as inputs, so lets rely
 	 * on examples until it's practically proved otherwise.
@@ -296,7 +298,7 @@ static int ax99100_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-static int ax99100_gpio_dir_out(struct gpio_chip *chip, unsigned offset,
+static int ax99100_gpio_dir_out(struct gpio_chip *chip, unsigned int offset,
 				int value)
 {
 	struct ax99100_data *ax = to_ax99100_gpio_chip(chip);
@@ -317,7 +319,7 @@ static int ax99100_gpio_dir_out(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
-static int ax99100_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int ax99100_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct ax99100_data *ax = to_ax99100_gpio_chip(chip);
 	u32 val;
@@ -327,7 +329,7 @@ static int ax99100_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return GPIO_CHECK(val, offset);
 }
 
-static void ax99100_gpio_set(struct gpio_chip *chip, unsigned offset,
+static void ax99100_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			     int value)
 {
 	struct ax99100_data *ax = to_ax99100_gpio_chip(chip);
@@ -360,7 +362,7 @@ static void ax99100_gpio_set_multi(struct gpio_chip *chip, unsigned long *mask,
 static void ax99100_gpio_irq_mask(struct irq_data *d)
 {
 	struct ax99100_data *ax = to_ax99100_irq_data(d);
-	unsigned offset = d->hwirq;
+	unsigned int offset = d->hwirq;
 	unsigned long flags;
 	u32 val;
 
@@ -373,7 +375,7 @@ static void ax99100_gpio_irq_mask(struct irq_data *d)
 static void ax99100_gpio_irq_unmask(struct irq_data *d)
 {
 	struct ax99100_data *ax = to_ax99100_irq_data(d);
-	unsigned offset = d->hwirq;
+	unsigned int offset = d->hwirq;
 	unsigned long flags;
 	u32 val;
 
@@ -386,7 +388,7 @@ static void ax99100_gpio_irq_unmask(struct irq_data *d)
 static int ax99100_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
 	struct ax99100_data *ax = to_ax99100_irq_data(d);
-	unsigned offset = d->hwirq;
+	unsigned int offset = d->hwirq;
 	unsigned long flags;
 	u32 rf, both;
 	int ret = 0;
@@ -395,7 +397,7 @@ static int ax99100_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 
 	both = ax99100_gpio_read(ax, GPIO_CTR);
 
-	switch(flow_type) {
+	switch (flow_type) {
 	case IRQ_TYPE_EDGE_RISING:
 	case IRQ_TYPE_EDGE_FALLING:
 		rf = ax99100_gpio_read(ax, GPIO_EM);
@@ -452,15 +454,15 @@ static int ax99100_gpio_init(struct ax99100_data *ax)
 	u32 mode;
 	int ret;
 
-	/* Initialize GPIO controller for function 0 only */
+	/* Initialize GPIO controller for function 0 only. */
 	if (PCI_FUNC(pdev->devfn))
 		return 0;
 
-	/* Retrieve ax99100 chip mode */
+	/* Retrieve ax99100 chip mode. */
 	mode = ax99100_gpio_read(ax, GPIO_EDE);
 	mode = GPIO_EDE_MR(mode);
 
-	/* Add GPIO-chip with num of pins corresponding to the mode */
+	/* Add GPIO-chip with num of pins corresponding to the mode. */
 	chip->label = "ax99100_gpio";
 	chip->dev = &ax->pci.pdev->dev;
 	chip->get_direction = ax99100_gpio_get_dir;
@@ -489,10 +491,10 @@ static int ax99100_gpio_init(struct ax99100_data *ax)
 
 	raw_spin_lock_init(&ax->gpio.wa_lock);
 
-	/* Disable any GPIO events at probe method */
+	/* Disable any GPIO events at probe method. */
 	ax99100_gpio_write(ax, 0, GPIO_EDE);
 
-	/* Add IRQ-chip corresponding to the GPIOs */
+	/* Add IRQ-chip corresponding to the GPIOs. */
 	ret = gpiochip_irqchip_add(chip, &ax99100_gpio_ic, 0, handle_simple_irq,
 				   IRQ_TYPE_NONE);
 	if (ret) {
@@ -515,7 +517,7 @@ err_gpiochip_remove:
 
 static void ax99100_gpio_clear(struct ax99100_data *ax)
 {
-	/* Clear GPIO controller for function 0 only */
+	/* Clear GPIO controller for function 0 only. */
 	if (PCI_FUNC(ax->pci.pdev->devfn))
 		return;
 
@@ -554,7 +556,8 @@ static irqreturn_t ax99100_pci_isr(int irq, void *devid)
 	if (val & SP_GIS_GPIO)
 		ret = ax99100_gpio_isr(ax);
 
-	/* NOTE In future this function shall also serve to handle the DMA
+	/*
+	 * NOTE In future this function shall also serve to handle the DMA
 	 * interrupts, but for now we're only working with GPIO IRQs here.
 	 */
 
@@ -573,7 +576,8 @@ static int ax99100_isr_init(struct ax99100_data *ax)
 		dev_err(&ax->pci.pdev->dev, "Failed to set IRQ#%d handler\n",
 			ax->pci.irq);
 	} else {
-		/* Enable GPIO IRQs for now only. Serial Port IRQs are setup by
+		/*
+		 * Enable only GPIO IRQs for now. Serial Port IRQs are setup by
 		 * normal port registers passed to 8250 subsystem.
 		 */
 		ax99100_sp_write(ax, SP_GIE_GPIO, SP_GIE);
@@ -586,7 +590,7 @@ static void ax99100_isr_clear(struct ax99100_data *ax)
 {
 	ax99100_sp_write(ax, 0, SP_GIE);
 
-	/* Manually free IRQ otherwise PCI free irq vectors will fail */
+	/* Manually free IRQ otherwise PCI free irq vectors will fail. */
 	devm_free_irq(&ax->pci.pdev->dev, ax->pci.irq, ax);
 }
 
@@ -619,7 +623,8 @@ static int ax99100_pci_init(struct ax99100_data *ax)
 
 	pci_set_master(pdev);
 
-	/* Map BAR1 and BAR5 only while BAR0 shall be occupied by Serial 8250
+	/*
+	 * Map BAR1 and BAR5 only while BAR0 shall be occupied by Serial 8250
 	 * subsystem.
 	 */
 	ret = pcim_iomap_regions(pdev, PCI_BAR_MASK, "ax99100_sp");
@@ -643,13 +648,13 @@ static int ax99100_pci_init(struct ax99100_data *ax)
 	ax->pci.irq = pci_irq_vector(pdev, 0);
 	if (ax->pci.irq < 0) {
 		dev_err(&pdev->dev, "Failed to get IRQ vector\n");
-		goto err_free_irq_vectors;	
+		goto err_free_irq_vectors;
 	}
 
 	return 0;
 
 err_free_irq_vectors:
-        pci_free_irq_vectors(pdev);
+	pci_free_irq_vectors(pdev);
 
 err_clear_drvdata:
 	pci_set_drvdata(pdev, NULL);
