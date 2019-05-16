@@ -2,13 +2,14 @@
 /*
  * Driver for AX99100 PCI-SPI multi-interface device
  *
- * Copyright (C) 2018 T-platforms JSC (fancer.lancer@gmail.com)
+ * Copyright (C) 2018-2019 T-platforms JSC (fancer.lancer@gmail.com)
  */
 
 #ifndef SPI_AX99100_H
 #define SPI_AX99100_H
 
 #include <linux/spinlock.h>
+#include <linux/completion.h>
 #include <linux/pci.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
@@ -26,7 +27,8 @@
 #define SPI_CKS125_MAX_FREQ	125000000
 #define SPI_CKS100_MAX_FREQ	100000000
 #define SPI_CKSEXT_MAX_FREQ	 24000000
-#define SPI_MAX_LEN		65535
+#define SPI_MAX_FIFO_LEN	8U
+#define SPI_MAX_DMA_LEN		65535
 #define I2C_NUM_ITER		100
 
 /*
@@ -146,6 +148,8 @@ struct ax99100_pci {
 
 struct ax99100_spi {
 	struct spi_controller *ctlr;
+
+	struct completion xfer_completion;
 
 	u32 sclk;
 };
