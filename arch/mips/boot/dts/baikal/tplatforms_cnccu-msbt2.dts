@@ -18,3 +18,7 @@
 	model = "Baikal-T1 CNC CU MSBT2 Board";
 	compatible = "baikal,mips", "baikal,baikal-t1-soc", "tplatforms,baikal-msbt2-card", "tplatforms,baikal-cnccu-msbt2-board";
 };
+
+&core_pll {
+	clock-frequency-range = <200000000 1700000000 25000000>;
+};

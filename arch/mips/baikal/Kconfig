@@ -1,8 +1,8 @@
-# 
+#
 # Baikal-T/T1 SOC platform support code.
 #
 # Copyright (C) 2014-2017 Baikal Electronics JSC
-# 
+#
 # Authors:
 # Dmitry Dunaev <dmitry.dunaev@baikalelectronics.com>
 # Alexander Sazonov <Alexander.Sazonov@baikalelectronics.ru>
@@ -52,6 +52,7 @@ config MIPS_BAIKAL_T1
     select GENERIC_SCHED_CLOCK
     select NO_IOPORT
     select SOC_BUS
+    select BAIKAL_EFUSE
     help
       Baikal-T1 SoC with MIPS32 P5600 core (production version)
 
@@ -71,9 +72,9 @@ config BAIKAL_T_COMMON
     select PHYLIB
     select DEBUG_LL
     select TIMER_GENERIC
+    select GENERIC_CLOCKEVENTS_MIN_ADJUST
     select ARCH_WANT_OPTIONAL_GPIOLIB
     select SYS_HAS_CPU_MIPS32_R5
-    select GENERIC_CLOCKEVENTS_MIN_ADJUST
 
     # HW perfomance counters
     select HAVE_PERF_EVENTS
@@ -82,11 +83,6 @@ config BAIKAL_T_COMMON
 
     # Clock source
     select COMMON_CLK_BAIKAL
-    select WDT_MIPS_GIC
-
-    # CPU frequency settings
-    select MIPS_EXTERNAL_TIMER
-    select CPU_FREQ
 
     # Serial UART
     select SERIAL_8250
@@ -123,6 +119,7 @@ config BAIKAL_T_COMMON
     select SPI_DW_MMIO
     select SPI_DW_MMIO_BOOT
     select SPI_DW_BOOT
+    select SPI_DW_MMIO_DMA
 
     # USB Support
     select USB_DWC3
@@ -160,8 +157,9 @@ config MACH_BAIKAL_BFK3
     # Memory mapping granularity
     select PAGE_SIZE_16KB
 
-    # Non-empty eFUSE
-    select EFUSE
+    # MMC
+    select MMC
+    select MMC_SPI
 
     # DTB select
     select DTB_BAIKAL_BFK3
@@ -169,11 +167,11 @@ config MACH_BAIKAL_BFK3
 config MACH_BAIKAL_QEMU
     bool "Baikal-T QEMU simulator"
 
-    # Boot Controller support
-    select BE_BC
-
     # Basic SoC features
     select MIPS_BAIKAL_T
+
+    # Boot Controller support
+    select BE_BC
 
     # Memory mapping granularity
     select PAGE_SIZE_16KB
@@ -231,6 +229,9 @@ config MACH_BAIKAL_FPGA
     # Basic SoC features
     select MIPS_BAIKAL_T
 
+    # Boot Controller support
+    select BE_BC
+
     # Memory mapping granularity
     select PAGE_SIZE_16KB
 
@@ -275,9 +276,6 @@ config MACH_TPLATFORMS_MSBT2
     # Memory mapping granularity
     select PAGE_SIZE_16KB
 
-    # Non-empty eFUSE
-    select EFUSE
-
     # DTB select
     select DTB_TPLATFORMS_MSBT2
 
@@ -290,9 +288,6 @@ config MACH_TPLATFORMS_MRBT1
 
     # Memory mapping granularity
     select PAGE_SIZE_16KB
-
-    # Non-empty eFUSE
-    select EFUSE
 
     # DTB select
     select DTB_TPLATFORMS_MRBT1
@@ -307,9 +302,6 @@ config MACH_TPLATFORMS_MITX
     # Memory mapping granularity
     select PAGE_SIZE_16KB
 
-    # Non-empty eFUSE
-    select EFUSE
-
     # DTB select
     select DTB_TPLATFORMS_MITX
 
@@ -322,9 +314,6 @@ config MACH_TPLATFORMS_RT1MB
 
     # Memory mapping granularity
     select PAGE_SIZE_16KB
-
-    # Non-empty eFUSE
-    select EFUSE
 
     # DTB select
     select DTB_TPLATFORMS_RT1MB
@@ -352,9 +341,6 @@ config MACH_TPLATFORMS_TC_MSBT2
     # Memory mapping granularity
     select PAGE_SIZE_16KB
 
-    # Non-empty eFUSE
-    select EFUSE
-
     # DTB select
     select DTB_TPLATFORMS_TC_MSBT2
 
@@ -381,9 +367,6 @@ config MACH_TPLATFORMS_AXT1_MSBT2
     # Memory mapping granularity
     select PAGE_SIZE_16KB
 
-    # Non-empty eFUSE
-    select EFUSE
-
     # DTB select
     select DTB_TPLATFORMS_AXT1_MSBT2
 
@@ -396,9 +379,6 @@ config MACH_TPLATFORMS_BC3BT1_MRBT1
 
     # Memory mapping granularity
     select PAGE_SIZE_16KB
-
-    # Non-empty eFUSE
-    select EFUSE
 
     # DTB select
     select DTB_TPLATFORMS_BC3BT1_MRBT1
@@ -425,9 +405,6 @@ config MACH_TPLATFORMS_CNC_MSBT2
 
     # Memory mapping granularity
     select PAGE_SIZE_16KB
-
-    # Non-empty eFUSE
-    select EFUSE
 
     # DTB select
     select DTB_TPLATFORMS_CNC_MSBT2
@@ -567,7 +544,7 @@ config BAIKAL_ERRATA_GMAC
       If unsure, say N.
 
 endif # BAIKAL_ERRATA
-endif # MACH_BAIKAL
+endif # MIPS_BAIKAL
 
 config SYS_HAS_CPU_MIPS32_R5
     bool
@@ -577,10 +554,9 @@ config WDT_MIPS_GIC
     bool
     default n
 
-config EFUSE
-    bool
-    default n
-
 config BE_BC
     bool
     default n
+
+config BAIKAL_EFUSE
+    tristate "Baikal-T1 eFUSE driver"

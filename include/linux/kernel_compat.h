@@ -286,12 +286,12 @@ static inline int dmaengine_terminate_sync(struct dma_chan *chan)
 #endif
 
 /* Kthread interface naming has been changed since 4.9.0 */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,9,0)
-#define init_kthread_work kthread_init_work
-#define queue_kthread_work kthread_queue_work
-#define flush_kthread_work kthread_flush_work
-#define init_kthread_worker kthread_init_worker
-#define flush_kthread_worker kthread_flush_worker
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,9,0)
+#define kthread_init_work init_kthread_work
+#define kthread_queue_work queue_kthread_work
+#define kthread_flush_work flush_kthread_work
+#define kthread_init_worker init_kthread_worker
+#define kthread_flush_worker flush_kthread_worker
 #endif
 
 /* SPI-master naming has been changed to SPI-controller since 4.13.0 */

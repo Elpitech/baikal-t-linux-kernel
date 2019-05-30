@@ -268,9 +268,12 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 	return dws->transfer_handler(dws);
 }
 
-static void dw_spi_poll_transfer(unsigned long data)
+/* Must be called inside pump_transfers() */
+static int poll_transfer(struct dw_spi *dws)
 {
-	struct dw_spi *dws = (struct dw_spi *)data;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	do {
 		dw_writer(dws);
@@ -278,7 +281,10 @@ static void dw_spi_poll_transfer(unsigned long data)
 		cpu_relax();
 	} while (dws->rx_end > dws->rx);
 
-	spi_finalize_current_transfer(dws->master);
+	local_irq_restore(flags);
+	preempt_check_resched();
+
+	return 0;
 }
 
 static int dw_spi_transfer_one(struct spi_master *master,
@@ -295,7 +301,7 @@ static int dw_spi_transfer_one(struct spi_master *master,
 
 	dws->tx = (void *)transfer->tx_buf;
 	dws->tx_end = dws->tx + transfer->len;
-	dws->rx = transfer->rx_buf;
+	dws->rx = (void *)transfer->rx_buf;
 	dws->rx_end = dws->rx + transfer->len;
 	dws->len = transfer->len;
 
@@ -380,7 +386,7 @@ static int dw_spi_transfer_one(struct spi_master *master,
 		if (ret < 0)
 			return ret;
 	} else if (chip->poll_mode) {
-		tasklet_schedule(&dws->poll_transfer);
+		return poll_transfer(dws);
 	}
 
 	return 1;
@@ -513,12 +519,11 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	master->max_speed_hz = dws->max_freq;
 	master->dev.of_node = dev->of_node;
 
-	tasklet_init(&dws->poll_transfer, dw_spi_poll_transfer, (unsigned long)dws);
-
 	/* Basic HW init */
 	spi_hw_init(dev, dws);
 
 	if (dws->dma_ops && dws->dma_ops->dma_init) {
+		master->max_dma_len = dws->max_dma_len;
 		ret = dws->dma_ops->dma_init(dws);
 		if (ret) {
 			dev_warn(dev, "DMA init failed\n");

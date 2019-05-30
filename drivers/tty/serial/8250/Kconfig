@@ -383,7 +383,11 @@ config SERIAL_8250_AX99100
 	tristate "Support for Asix AX99100 PCI-Serial Ports"
 	depends on SERIAL_8250 && PCI
 	help
-	  Enable support of PCI-Serial functions of Asix AX99100 controller.
+	  Say Y here if you have an Asix AX99100 controller with serial
+	  functions activated. If unsure, say N.
+
+	  This driver can also be built as a module. The module will be called
+	  8250_ax99100. If you want to do that, say M here.
 
 config SERIAL_8250_AX99100_GPIO
 	bool "GPIO-interface support for AX99100"

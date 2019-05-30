@@ -105,6 +105,7 @@ static int boot_spi_write(struct spi_master *master, int chip_select,
         ;
 
     local_irq_restore(flags);          /* Critical section - OFF */
+    preempt_check_resched();
 
     udelay(10);                                     /* don't delete */
 
@@ -114,10 +115,10 @@ static int boot_spi_write(struct spi_master *master, int chip_select,
 static int boot_spi_read(struct spi_master *master, int chip_select,
     const uint8_t* tx, uint8_t* rx, int lentx, int lenrx)
 {
-    uint8_t *rxend = rx + lenrx;
+    int i;
+    uint8_t* const rxend = rx + lenrx;
     struct dw_boot_spi *dws;
     unsigned long flags;
-    int i;
 
     local_irq_save(flags);               /* Critical section - ON */
 
@@ -146,6 +147,7 @@ static int boot_spi_read(struct spi_master *master, int chip_select,
     }
 
     local_irq_restore(flags);          /* Critical section - OFF */
+    preempt_check_resched();
 
     return 0;
 }
@@ -155,19 +157,19 @@ static char direction (char cmd)
     /**
      * cmd + read
      * RDID        Read Identification                 9Fh  0   0     (1 to 20)
-     * READ        Read Data Bytes                     03h  3   0     (1 to â)
-     * FAST_READ   Read Data Bytes at Higher Speed     0Bh  3   8     (1 to â)
-     * DOFR        Dual Output Fast Read               3Bh  3   8     (1 to â)
-     * DIOFR       Dual Input/Output Fast Read         BBh  3   8     (1 to â)
-     * QOFR        Quad Output Fast Read               6Bh  3   8     (1 to â)
-     * QIOFR       Quad Input/Output Fast Read         EBh  3   10    (1 to â)
+     * READ        Read Data Bytes                     03h  3   0     (1 to ∞)
+     * FAST_READ   Read Data Bytes at Higher Speed     0Bh  3   8     (1 to ∞)
+     * DOFR        Dual Output Fast Read               3Bh  3   8     (1 to ∞)
+     * DIOFR       Dual Input/Output Fast Read         BBh  3   8     (1 to ∞)
+     * QOFR        Quad Output Fast Read               6Bh  3   8     (1 to ∞)
+     * QIOFR       Quad Input/Output Fast Read         EBh  3   10    (1 to ∞)
      * ROTP        Read OTP (Read of OTP area)         4Bh  3   8     (1 to 65)
-     * RDSR        Read Status Register                05h  0   0     (1 to â)
-     * RDLR        Read Lock Register                  E8h  3   0     (1 to â)
-     * RFSR        Read Flag Status Register           70h  0   0     (1 to â)
+     * RDSR        Read Status Register                05h  0   0     (1 to ∞)
+     * RDLR        Read Lock Register                  E8h  3   0     (1 to ∞)
+     * RFSR        Read Flag Status Register           70h  0   0     (1 to ∞)
      * RDNVCR      Read NV Configuration Register      B5h  0   0     (2)
-     * RDVCR       Read Volatile Config Register       85h  0   0     (1 to â)
-     * RDVECR      Read Volatile Enhanced Config Reg   65h  0   0     (1 to â)
+     * RDVCR       Read Volatile Config Register       85h  0   0     (1 to ∞)
+     * RDVECR      Read Volatile Enhanced Config Reg   65h  0   0     (1 to ∞)
      *
      * cmd + write
      * PP          Page Program                        02h  3   0     (1 to 256)
@@ -250,7 +252,8 @@ static int boot_spi_transfer_one_message(struct spi_master *master, struct spi_m
 
     list_for_each_entry(pos, head, transfer_list)
     {
-        const void *out1 = 0, *out2 = 0;
+        const void *out1 = 0;
+        const void *out2 = 0;
         void *in = 0;
         int len1 = 0, len2 = 0, len3 = 0;
 
@@ -499,6 +502,8 @@ static int remove(struct platform_device *pdev)
     struct dw_boot_spi *dws = platform_get_drvdata(pdev);
 
     clk_disable_unprepare(dws->clk);
+    spi_boot_enable_chip(dws, 0);
+    spi_boot_set_clk(dws, 0);
     be_bc_disable_spi(dws->bc);
 
     return 0;

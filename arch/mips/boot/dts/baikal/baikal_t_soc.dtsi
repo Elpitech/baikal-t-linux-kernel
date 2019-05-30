@@ -12,10 +12,10 @@
 #include "baikal_t_clocks.dtsi"
 
 / {
-
+	/* Extend CPU address space to 64-bit in case if XPA is enabled */
 	compatible = "baikal,mips", "baikal,baikal-t-soc";
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 	interrupt-parent = <&gic>;
 
 	aliases {
@@ -54,32 +54,29 @@
 		};
 	};
 
-	cpus_freq {
+	cpufreq: cpufreq@1F04D000 {
 		compatible = "be,cpufreq";
+		reg = <0 0x1F04D000 0 0x0008>;
 		clocks = <&cpu_clk 0>;
 		clock-names = "cpuclk";
-		be,clk-freq-min = <200000>;
-		be,clk-freq-max = <1200000>;
 	};
 
 	gic_wdt: gic_wdt {
 		compatible = "be,gic-wdt";
 		interrupts = <GIC_LOCAL 0 IRQ_TYPE_NONE>;
-		clock-frequency = <600000000>;
 		clocks = <&gic_clk 0>;
 		clock-names = "gicclk";
 	};
 
 	gic: gic@1BDC0000 {
 		compatible = "mti,gic";
-		reg = <0x1BDC0000 0x20000>;
+		reg = <0 0x1BDC0000 0 0x20000>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
 
 		timer:timer {
 			compatible = "mti,gic-timer";
 			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
-			clock-frequency = <600000000>;
 			clocks = <&gic_clk 0>;
 			clock-names = "gicclk";
 		};
@@ -87,10 +84,10 @@
 
 	sram: sram@1BF80000 {
 		compatible = "mmio-sram";
-		reg = <0x1BF80000 0x10000>;
+		reg = <0 0x1BF80000 0 0x10000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0 0x1BF80000 0x10000>;
+		ranges = <0 0 0x1BF80000 0x10000>;
 
 		smp-sram@0 {
 			compatible = "be,smp-sram";
@@ -106,20 +103,20 @@
 		#size-cells = <1>;
 		interrupt-parent = <&gic>;
 
-		ranges;
+		ranges = <0x08000000 0 0x08000000 0x18000000>;
 
 		dma: dma@1f041000 {
 			compatible = "snps,dma-spear1340";
 			reg = <0x1f041000 0x1000>;
 			interrupts = <GIC_SHARED 56 IRQ_TYPE_LEVEL_HIGH>;
-			dma-channels = <8>;
+			dma-channels = <2>;
 			dma-requests = <16>;
 			dma-masters = <2>;
 			#dma-cells = <3>;
 			chan_allocation_order = <1>;
 			chan_priority = <1>;
 			block_size = <0xfff>;
-			data_width = <3 3 0 0>;
+			data_width = <0 0 0 0>;
 			clocks = <&dma_clk 0>;
 			clock-names = "hclk";
 		};
@@ -186,7 +183,7 @@
 			ranges = <0x81000000 0 0x00000000 0x1bd00000 0 0x00010000
 				  0x82000000 0 0x20000000 0x08000000 0 0x13b00000>;
 			num-lanes = <4>;
-			num-vieports = <4>;
+			num-viewport = <4>;
 			status = "disabled";
 		};
 
@@ -266,7 +263,7 @@
 		#size-cells = <1>;
 		interrupt-parent = <&gic>;
 
-		ranges;
+		ranges = <0x1F000000 0 0x1F000000 0x1000000>;
 
 		bc: bc@1F040000 {
 			compatible = "be,bc";
@@ -389,37 +386,47 @@
 		};
 
 		spi0: spi0@1F04E000 {
+			compatible = "snps,dw-apb-ssi-dma", "snps,dw-apb-ssi", "snps,dw-spi";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "snps,dw-apb-ssi", "snps,dw-spi";
+			reg-io-width = <4>;
 			reg = <0x1F04E000 0x1000>;
 			interrupts = <GIC_SHARED 40 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&spi0_clk 0>;
 			clock-names = "spi0clk";
+			dmas = <&dma 8 0 1>,  /* tx, mem2dev, (dst id = 8) (src master = 0,1) (dst master = 0,1) */
+			       <&dma 9 1 0>;  /* rx, dev2mem, (src id = 9) (src master = 0,1) (dst master = 0,1) */
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
 		spi1: spi1@1F04F000 {
+			compatible = "snps,dw-apb-ssi-dma", "snps,dw-apb-ssi", "snps,dw-spi";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "snps,dw-apb-ssi", "snps,dw-spi";
+			reg-io-width = <4>;
 			reg = <0x1F04F000 0x1000>;
 			interrupts = <GIC_SHARED 41 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&spi1_clk 0>;
 			clock-names = "spi1clk";
+			dmas = <&dma 10 0 1>,  /* tx, mem2dev, (dst id = 10) (src master = 0,1) (dst master = 0,1) */
+			       <&dma 11 1 0>;  /* rx, dev2mem, (src id = 11) (src master = 0,1) (dst master = 0,1) */
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
 		spi2: spi2@1F040100 {
+			compatible = "snps,dw-apb-ssi", "snps,dw-spi-boot";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "snps,dw-apb-ssi-boot", "snps,dw-spi-boot";
+			reg-io-width = <4>;
 			reg = <0x1F040100 0xF00>;
 			clocks = <&boot_clk 0>;
 			clock-names = "bootclk";
 			boot-controller = <&bc>;
 			status = "disabled";
 			/* no interrupts */
+			/* no dma */
 		};
 
 		apb_ehb@1F059000 {

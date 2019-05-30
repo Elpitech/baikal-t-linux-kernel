@@ -12,6 +12,7 @@
 
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/nls.h>
@@ -222,18 +223,55 @@ static const struct usb251xb_data usb2517i_data = {
 	.product_str = "USB2517i",
 };
 
+static int usb251xb_check_dev_children(struct device *dev, void *child)
+{
+	if (dev->type == &i2c_adapter_type) {
+		return device_for_each_child(dev, child,
+					     usb251xb_check_dev_children);
+	}
+
+	return (dev == child);
+}
+
+static int usb251x_check_gpio_chip(struct usb251xb *hub)
+{
+	struct gpio_chip *gc = gpiod_to_chip(hub->gpio_reset);
+	struct i2c_adapter *adap = hub->i2c->adapter;
+	int ret;
+
+	if (!hub->gpio_reset)
+		return 0;
+
+	if (!gc)
+		return -EINVAL;
+
+	ret = usb251xb_check_dev_children(&adap->dev, gc->dev);
+	if (ret) {
+		dev_err(hub->dev, "Reset GPIO chip is at the same i2c-bus\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void usb251xb_reset(struct usb251xb *hub, int state)
 {
 	if (!hub->gpio_reset)
 		return;
 
+	i2c_lock_adapter(hub->i2c->adapter);
+
+	usleep_range(1, 10);
+
 	gpiod_set_value_cansleep(hub->gpio_reset, state);
 
 	/* wait for hub recovery/stabilization */
 	if (!state)
-		usleep_range(500, 750);	/* >=500us at power on */
+		usleep_range(1000, 2000);	/* >=500us at power on */
 	else
 		usleep_range(1, 10);	/* >=1us at power down */
+
+	i2c_unlock_adapter(hub->i2c->adapter);
 }
 
 static int usb251xb_connect(struct usb251xb *hub)
@@ -331,23 +369,19 @@ out_err:
 }
 
 #ifdef CONFIG_OF
-static void usb251xb_get_ports_field(struct usb251xb *hub, const char *prop,
+static void usb251xb_get_ports_field(struct usb251xb *hub, const char *prop_name,
 				     u8 port_cnt, u8 *fld)
 {
 	struct device *dev = hub->dev;
-	const u32 *cproperty_u32;
-	int len, i;
+	struct property *prop;
+	const __be32 *p;
+	u32 port;
 
-	cproperty_u32 = of_get_property(dev->of_node, prop, &len);
-	if (cproperty_u32 && (len / sizeof(u32)) > 0) {
-		for (i = 0; i < len / sizeof(u32); i++) {
-			u32 port = be32_to_cpu(cproperty_u32[i]);
-
-			if ((port >= 1) && (port <= port_cnt))
-				*fld |= BIT(port);
-			else
-				dev_warn(dev, "port %u doesn't exist\n", port);
-		}
+	of_property_for_each_u32(dev->of_node, prop_name, prop, p, port) {
+		if ((port >= 1) && (port <= port_cnt))
+			*fld |= BIT(port);
+		else
+			dev_warn(dev, "port %u doesn't exist\n", port);
 	}
 }
 
@@ -378,8 +412,6 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		err = PTR_ERR(hub->gpio_reset);
 		dev_err(dev, "unable to request GPIO reset pin (%d)\n", err);
 		return err;
-	} else if (hub->gpio_reset) {
-		usleep_range(1, 10);
 	}
 
 	if (of_property_read_u16_array(np, "vendor-id", &hub->vendor_id, 1))
@@ -530,11 +562,15 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 			      (wchar_t *)hub->serial,
 			      USB251XB_STRING_BUFSIZE);
 
+	/*
+	 * The datasheet documents the register as 'Port Swap' but in real the
+	 * register controls the USB DP/DM signal swapping for each port.
+	 */
 	hub->port_swap = USB251XB_DEF_PORT_SWAP;
-	if (of_get_property(np, "us-lanes-inverted", NULL))
+	usb251xb_get_ports_field(hub, "swap-dx-lanes", data->port_cnt,
+				 &hub->port_swap);
+	if (of_get_property(np, "swap-us-lanes", NULL))
 		hub->port_swap |= BIT(0);
-	usb251xb_get_ports_field(hub, "ds-lanes-interted", data->port_cnt,
-				 &hub->non_rem_dev);
 
 	/* The following parameters are currently not exposed to devicetree, but
 	 * may be as soon as needed.
@@ -605,6 +641,25 @@ static int usb251xb_probe(struct usb251xb *hub)
 			return err;
 		}
 	}
+
+	/*
+	 * usb251x SMBus-slave SCL lane is muxed with CFG_SEL0 pin. So if anyone
+	 * tries to work with the bus at the moment the hub reset is released,
+	 * it may cause an invalid config being latched by usb251x. Particularly
+	 * one of the config modes makes the hub loading a default registers
+	 * value without SMBus-slave interface activation. If the hub
+	 * accidentally gets this mode, this will cause the driver SMBus-
+	 * functions failure. Normally we could just lock the SMBus-segment the
+	 * hub i2c-interface resides for the device-specific reset timing. But
+	 * the GPIO controller, which is used to handle the hub reset, might be
+	 * placed at the same i2c-bus segment. In this case an error should be
+	 * returned since we can't safely use the GPIO controller to clear the
+	 * reset state (it may affect the hub configuration) and we can't lock
+	 * the i2c-bus segment (it will cause a deadlock).
+	 */
+	err = usb251x_check_gpio_chip(hub);
+	if (err)
+		return err;
 
 	err = usb251xb_connect(hub);
 	if (err) {

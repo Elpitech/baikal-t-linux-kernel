@@ -14,7 +14,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		ranges;
+		ranges = <0x1F04D000 0 0x1F04D000 0x100>;
 
 		/* external oscillator */
 		osc: oscillator@0 {
@@ -31,6 +31,7 @@
 			clock-names = "ref";
 			reg = <0x1F04D000 0x0008>;
 			clock-output-names = "corepll";
+			clock-frequency-range = <200000000 900000000 25000000>;
 		};
 
 		sata_pll: sata_pll@1F04D008 {

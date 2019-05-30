@@ -3,7 +3,6 @@
 
 #include <linux/io.h>
 #include <linux/scatterlist.h>
-#include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <asm/mach-baikal/bc.h>
 
@@ -123,11 +122,9 @@ struct dw_spi {
 	int			dma_mapped;
 	u8			n_bytes;	/* current is a 1/2 bytes op */
 	u32			dma_width;
+	size_t			max_dma_len;
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 	u32			current_freq;	/* frequency in hz */
-
-	 /* Poll-transfer tasklet */
-	struct tasklet_struct	poll_transfer;
 
 	/* DMA info */
 	int			dma_inited;
@@ -135,7 +132,7 @@ struct dw_spi {
 	struct dma_chan		*rxchan;
 	unsigned long		dma_chan_busy;
 	dma_addr_t		dma_addr; /* phy address of the Data register */
-	struct dw_spi_dma_ops	*dma_ops;
+	const struct dw_spi_dma_ops *dma_ops;
 	void			*dma_tx;
 	void			*dma_rx;
 
@@ -221,6 +218,16 @@ static inline void spi_enable_chip(struct dw_spi *dws, int enable)
 static inline void spi_set_clk(struct dw_spi *dws, u16 div)
 {
 	dw_writel(dws, DW_SPI_BAUDR, div);
+}
+
+static inline void spi_boot_enable_chip(struct dw_boot_spi *dws, int enable)
+{
+    dw_boot_writel(dws, DW_SPI_SSIENR, (enable ? 1 : 0));
+}
+
+static inline void spi_boot_set_clk(struct dw_boot_spi *dws, u16 div)
+{
+    dw_boot_writel(dws, DW_SPI_BAUDR, div);
 }
 
 /* Disable IRQ bits */

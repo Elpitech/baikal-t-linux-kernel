@@ -18,19 +18,17 @@
 / {
 	model = "Baikal-T SFBT1 Mezzanine Card";
 	compatible = "baikal,mips", "baikal,baikal-t-soc", "tplatforms,baikal-sfbt1-card";
-	#address-cells = <1>;
-	#size-cells = <1>;
 
 	chosen {
 		bootargs = "root=/dev/ram rw console=ttyS0,115200 earlyprintk=uart8250,mmio32,0x1F04A000,115200 nohtw";
-		linux,initrd-start = <0x01000000>;
-		linux,initrd-end   = <0x02000000>;
+		linux,initrd-start = <0 0x01000000>;
+		linux,initrd-end   = <0 0x02000000>;
 	};
 
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0x08000000>,
-		      <0x20000000 0x60000000>;
+		reg = <0 0x00000000 0 0x08000000>,
+		      <0 0x20000000 0 0x60000000>;
 	};
 };
 
@@ -147,7 +145,7 @@
 	spd: eeprom@50 {
 		compatible = "atmel,24c02";
 		reg = <0x50>;
-		pagesize = <16>;
+		pagesize = <8>;
 	};
 
 	nand_usbhub: usbhub@2C {
@@ -189,7 +187,7 @@
 		#size-cells = <1>;
 		compatible = "micron,n25q128a11", "jedec,spi-nor";
 		reg = <0>;
-		spi-max-frequency = <500000>;
+		spi-max-frequency = <5000000>;
 		m25p,fast-read;
 
 		partition@0 {

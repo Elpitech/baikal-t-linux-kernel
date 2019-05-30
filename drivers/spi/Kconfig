@@ -690,8 +690,8 @@ config SPI_DW_MMIO
 	tristate "Memory-mapped io interface driver for DW SPI core"
 	depends on SPI_DESIGNWARE
 
-config SPI_DW_MMIO_BOOT
-	tristate "Memory-mapped io interface driver for DW SPI-boot core"
+config SPI_DW_MMIO_DMA
+	tristate "Memory-mapped io interface driver for DW SPI core (with DMA)"
 	depends on SPI_DESIGNWARE
 
 config SPI_DW_BOOT

@@ -20,19 +20,17 @@
 / {
 	model = "Baikal-T1 BFKX evaluation board";
 	compatible = "baikal,mips", "baikal,baikal-t1-soc", "baikal,baikal-bfk-eval-board";
-	#address-cells = <1>;
-	#size-cells = <1>;
 
 	chosen {
 		bootargs = "root=/dev/ram rw rootwait console=ttyS0,115200n8 earlyprintk=uart8250,mmio32,0x1F04A000,115200 maxcpus=2 nohtw";
-		linux,initrd-start = <0x01000000>;
-		linux,initrd-end   = <0x02000000>;
+		linux,initrd-start = <0 0x01000000>;
+		linux,initrd-end   = <0 0x02000000>;
 	};
 
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0x08000000>,
-		      <0x20000000 0xC0000000>;
+		reg = <0 0x00000000 0 0x08000000>,
+		      <0 0x20000000 0 0xC0000000>;
 	};
 };
 
@@ -161,7 +159,6 @@
 };
 
 &spi0 {
-	reg-io-width = <4>;
 	num-cs = <3>;
 	cs-gpios = <&porta 23 GPIO_ACTIVE_LOW>,
 			   <&porta 28 GPIO_ACTIVE_LOW>,
@@ -208,7 +205,6 @@
 };
 
 &spi2 {
-	reg-io-width = <4>;
 	num-cs = <1>;
 	status = "okay";
 
@@ -216,7 +212,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "micron,n25q128a11", "jedec,spi-nor";
-		spi-max-frequency = <500000>;
+		spi-max-frequency = <5000000>;
 		m25p,fast-read;
 		reg = <0>;
 

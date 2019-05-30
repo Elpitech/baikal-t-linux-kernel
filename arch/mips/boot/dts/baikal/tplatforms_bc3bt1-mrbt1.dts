@@ -72,7 +72,7 @@
 };
 
 &porta {
-	sd_reset {
+	m2_reset {
 		line-name = "m2-full-pwr-off";
 		gpio-hog;
 		gpios = <22 GPIO_ACTIVE_LOW>;
@@ -167,7 +167,7 @@
 		sp-max-removable-current-microamp = <200000>;
 		bp-max-removable-current-microamp = <200000>;
 		power-on-time-ms = <100>;
-		us-lanes-inverted;
+		swap-us-lanes;
 	};
 
 	simmux: simmux@3c {

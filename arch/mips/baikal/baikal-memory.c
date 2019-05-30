@@ -47,6 +47,11 @@ void __init prom_free_prom_memory(void)
  */
 void __init plat_mem_setup(void)
 {
+	/* Since MMIO is unsupported we need to make sure the Scsi_Host or
+	 * netdevice subsystems rely on parent devices DMA-masks to decide
+	 * whether to use bounce buffers for too high memory ranges. */
+	PCI_DMA_BUS_IS_PHYS = 1;
+
 	if (config_enabled(CONFIG_EVA))
 		/* EVA should be configured in mach-baikal/kernel-init.h */
 		pr_info("Enhanced Virtual Addressing (EVA) activated\n");
