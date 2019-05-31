@@ -10,7 +10,7 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-#include <linux/i2c-mux-gpio.h>
+#include <linux/platform_data/i2c-mux-gpio.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -20,16 +20,15 @@
 
 struct gpiomux {
 	struct i2c_mux_gpio_platform_data data;
-	unsigned gpio_base;
+	unsigned int gpio_base;
+	unsigned int initial_state;
+	struct gpio_desc **gpios;
 };
 
 static void i2c_mux_gpio_set(const struct gpiomux *mux, unsigned val)
 {
-	int i;
-
-	for (i = 0; i < mux->data.n_gpios; i++)
-		gpio_set_value_cansleep(mux->gpio_base + mux->data.gpios[i],
-					val & (1 << i));
+	/* Number of GPIOs mustn't exceed number of bits per int */
+	gpiod_set_array_value_cansleep(mux->data.n_gpios, mux->gpios, &val);
 }
 
 static int i2c_mux_gpio_select(struct i2c_mux_core *muxc, u32 chan)
@@ -63,8 +62,8 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *adapter_np, *child;
 	struct i2c_adapter *adapter;
-	unsigned *values, *gpios;
-	int i = 0, ret;
+	unsigned int *values;
+	int i = 0;
 
 	if (!np)
 		return -ENODEV;
@@ -84,8 +83,8 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 
 	mux->data.n_values = of_get_child_count(np);
 
-	values = devm_kzalloc(&pdev->dev,
-			      sizeof(*mux->data.values) * mux->data.n_values,
+	values = devm_kcalloc(&pdev->dev,
+			      mux->data.n_values, sizeof(*mux->data.values),
 			      GFP_KERNEL);
 	if (!values) {
 		dev_err(&pdev->dev, "Cannot allocate values array");
@@ -107,110 +106,114 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 		return -EINVAL;
 	}
 
-	gpios = devm_kzalloc(&pdev->dev,
-			     sizeof(*mux->data.gpios) * mux->data.n_gpios, GFP_KERNEL);
-	if (!gpios) {
-		dev_err(&pdev->dev, "Cannot allocate gpios array");
-		return -ENOMEM;
-	}
+	return 0;
+}
+
+static int i2c_mux_gpio_request_dt(struct gpiomux *mux,
+					struct platform_device *pdev)
+{
+	struct i2c_mux_core *muxc = platform_get_drvdata(pdev);
+	struct device_node *np = pdev->dev.of_node;
+	struct i2c_adapter *root;
+	struct device *gpio_dev;
+	enum gpiod_flags dflags;
+	int i, ret;
+
+	root = i2c_root_adapter(&muxc->parent->dev);
 
 	for (i = 0; i < mux->data.n_gpios; i++) {
-		ret = of_get_named_gpio(np, "mux-gpios", i);
-		if (ret < 0)
-			return ret;
-		gpios[i] = ret;
+		if (mux->initial_state & (1 << i))
+			dflags = GPIOD_OUT_HIGH;
+		else
+			dflags = GPIOD_OUT_LOW;
+
+		mux->gpios[i] = fwnode_get_named_gpiod(&np->fwnode, "mux-gpios",
+						       i, dflags, "i2c-mux-gpio");
+		if (IS_ERR(mux->gpios[i])) {
+			ret = PTR_ERR(mux->gpios[i]);
+			goto err_request_gpio;
+		}
+
+		if (!muxc->mux_locked)
+			continue;
+
+		gpio_dev = &mux->gpios[i]->gdev->dev;
+		muxc->mux_locked = i2c_root_adapter(gpio_dev) == root;
 	}
 
-	mux->data.gpios = gpios;
-
 	return 0;
+
+err_request_gpio:
+	for (i--; i >= 0; i--)
+		gpiod_free(mux->gpios[i]);
+
+	return ret;
 }
 #else
 static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 					struct platform_device *pdev)
 {
-	return 0;
+	return -EINVAL;
+}
+
+static int i2c_mux_gpio_request_dt(struct gpiomux *mux,
+					struct platform_device *pdev)
+{
+	return -EINVAL;
 }
 #endif
 
-static int i2c_mux_gpio_probe(struct platform_device *pdev)
+static int i2c_mux_gpio_probe_plat(struct gpiomux *mux,
+					struct platform_device *pdev)
 {
-	struct i2c_mux_core *muxc;
-	struct gpiomux *mux;
-	struct i2c_adapter *parent;
-	struct i2c_adapter *root;
-	unsigned initial_state, gpio_base;
-	int i, ret;
-
-	mux = devm_kzalloc(&pdev->dev, sizeof(*mux), GFP_KERNEL);
-	if (!mux)
-		return -ENOMEM;
-
-	if (!dev_get_platdata(&pdev->dev)) {
-		ret = i2c_mux_gpio_probe_dt(mux, pdev);
-		if (ret < 0)
-			return ret;
-	} else {
-		memcpy(&mux->data, dev_get_platdata(&pdev->dev),
-			sizeof(mux->data));
-	}
+	struct i2c_mux_gpio_platform_data *data = dev_get_platdata(&pdev->dev);
+	struct gpio_chip *gpio;
 
 	/*
 	 * If a GPIO chip name is provided, the GPIO pin numbers provided are
 	 * relative to its base GPIO number. Otherwise they are absolute.
 	 */
-	if (mux->data.gpio_chip) {
-		struct gpio_chip *gpio;
-
-		gpio = gpiochip_find(mux->data.gpio_chip,
+	if (data->gpio_chip) {
+		gpio = gpiochip_find(data->gpio_chip,
 				     match_gpio_chip_by_label);
 		if (!gpio)
 			return -EPROBE_DEFER;
 
-		gpio_base = gpio->base;
+		mux->gpio_base = gpio->base;
 	} else {
-		gpio_base = 0;
+		mux->gpio_base = 0;
 	}
 
-	parent = i2c_get_adapter(mux->data.parent);
-	if (!parent)
-		return -EPROBE_DEFER;
+	memcpy(&mux->data, data, sizeof(mux->data));
 
-	muxc = i2c_mux_alloc(parent, &pdev->dev, mux->data.n_values, 0, 0,
-			     i2c_mux_gpio_select, NULL);
-	if (!muxc) {
-		ret = -ENOMEM;
-		goto alloc_failed;
-	}
-	muxc->priv = mux;
+	return 0;
+}
 
-	platform_set_drvdata(pdev, muxc);
+static int i2c_mux_gpio_request_plat(struct gpiomux *mux,
+					struct platform_device *pdev)
+{
+	struct i2c_mux_core *muxc = platform_get_drvdata(pdev);
+	struct gpio_desc *gpio_desc;
+	struct i2c_adapter *root;
+	struct device *gpio_dev;
+	int i, ret;
 
-	root = i2c_root_adapter(&parent->dev);
+	if (!mux->data.gpios)
+		return -EINVAL;
 
-	muxc->mux_locked = true;
-	mux->gpio_base = gpio_base;
-
-	if (mux->data.idle != I2C_MUX_GPIO_NO_IDLE) {
-		initial_state = mux->data.idle;
-		muxc->deselect = i2c_mux_gpio_deselect;
-	} else {
-		initial_state = mux->data.values[0];
-	}
+	root = i2c_root_adapter(&muxc->parent->dev);
 
 	for (i = 0; i < mux->data.n_gpios; i++) {
-		struct device *gpio_dev;
-		struct gpio_desc *gpio_desc;
-
-		ret = gpio_request(gpio_base + mux->data.gpios[i], "i2c-mux-gpio");
+		ret = gpio_request(mux->gpio_base + mux->data.gpios[i],
+				   "i2c-mux-gpio");
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to request GPIO %d\n",
 				mux->data.gpios[i]);
 			goto err_request_gpio;
 		}
 
-		ret = gpio_direction_output(gpio_base + mux->data.gpios[i],
-					    initial_state & (1 << i));
+		ret = gpio_direction_output(mux->gpio_base + mux->data.gpios[i],
+					    mux->initial_state & (1 << i));
 		if (ret) {
 			dev_err(&pdev->dev,
 				"Failed to set direction of GPIO %d to output\n",
@@ -219,13 +222,82 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 			goto err_request_gpio;
 		}
 
+		gpio_desc = gpio_to_desc(mux->gpio_base + mux->data.gpios[i]);
+		mux->gpios[i] = gpio_desc;
+
 		if (!muxc->mux_locked)
 			continue;
 
-		gpio_desc = gpio_to_desc(gpio_base + mux->data.gpios[i]);
 		gpio_dev = &gpio_desc->gdev->dev;
 		muxc->mux_locked = i2c_root_adapter(gpio_dev) == root;
 	}
+
+	return 0;
+
+err_request_gpio:
+	for (; i > 0; i--)
+		gpio_free(mux->gpio_base + mux->data.gpios[i - 1]);
+
+	return ret;
+}
+
+static void i2c_mux_gpio_free(struct gpiomux *mux)
+{
+	int i;
+
+	for (i = 0; i < mux->data.n_gpios; i++)
+		gpiod_free(mux->gpios[i]);
+}
+
+static int i2c_mux_gpio_probe(struct platform_device *pdev)
+{
+	struct i2c_mux_core *muxc;
+	struct gpiomux *mux;
+	struct i2c_adapter *parent;
+	int i, ret;
+
+	mux = devm_kzalloc(&pdev->dev, sizeof(*mux), GFP_KERNEL);
+	if (!mux)
+		return -ENOMEM;
+
+	if (!dev_get_platdata(&pdev->dev))
+		ret = i2c_mux_gpio_probe_dt(mux, pdev);
+	else
+		ret = i2c_mux_gpio_probe_plat(mux, pdev);
+	if (ret)
+		return ret;
+
+	parent = i2c_get_adapter(mux->data.parent);
+	if (!parent)
+		return -EPROBE_DEFER;
+
+	muxc = i2c_mux_alloc(parent, &pdev->dev, mux->data.n_values,
+			     mux->data.n_gpios * sizeof(*mux->gpios), 0,
+			     i2c_mux_gpio_select, NULL);
+	if (!muxc) {
+		ret = -ENOMEM;
+		goto alloc_failed;
+	}
+	mux->gpios = muxc->priv;
+	muxc->priv = mux;
+
+	platform_set_drvdata(pdev, muxc);
+
+	muxc->mux_locked = true;
+
+	if (mux->data.idle != I2C_MUX_GPIO_NO_IDLE) {
+		mux->initial_state = mux->data.idle;
+		muxc->deselect = i2c_mux_gpio_deselect;
+	} else {
+		mux->initial_state = mux->data.values[0];
+	}
+
+	if (!dev_get_platdata(&pdev->dev))
+		ret = i2c_mux_gpio_request_dt(mux, pdev);
+	else
+		ret = i2c_mux_gpio_request_plat(mux, pdev);
+	if (ret)
+		goto alloc_failed;
 
 	if (muxc->mux_locked)
 		dev_info(&pdev->dev, "mux-locked i2c mux\n");
@@ -235,10 +307,8 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 		unsigned int class = mux->data.classes ? mux->data.classes[i] : 0;
 
 		ret = i2c_mux_add_adapter(muxc, nr, mux->data.values[i], class);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to add adapter %d\n", i);
+		if (ret)
 			goto add_adapter_failed;
-		}
 	}
 
 	dev_info(&pdev->dev, "%d port mux on %s adapter\n",
@@ -248,10 +318,9 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 
 add_adapter_failed:
 	i2c_mux_del_adapters(muxc);
-	i = mux->data.n_gpios;
-err_request_gpio:
-	for (; i > 0; i--)
-		gpio_free(gpio_base + mux->data.gpios[i - 1]);
+
+	i2c_mux_gpio_free(mux);
+
 alloc_failed:
 	i2c_put_adapter(parent);
 
@@ -262,12 +331,10 @@ static int i2c_mux_gpio_remove(struct platform_device *pdev)
 {
 	struct i2c_mux_core *muxc = platform_get_drvdata(pdev);
 	struct gpiomux *mux = i2c_mux_priv(muxc);
-	int i;
 
 	i2c_mux_del_adapters(muxc);
 
-	for (i = 0; i < mux->data.n_gpios; i++)
-		gpio_free(mux->gpio_base + mux->data.gpios[i]);
+	i2c_mux_gpio_free(mux);
 
 	i2c_put_adapter(muxc->parent);
 

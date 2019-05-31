@@ -20,6 +20,9 @@
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
 #include <linux/property.h>
+#ifdef CONFIG_MIPS_BAIKAL
+#include <asm/mach-baikal/bc.h>
+#endif
 
 #include "spi-dw.h"
 
@@ -27,8 +30,46 @@
 
 struct dw_spi_mmio {
 	struct dw_spi  dws;
+#ifdef CONFIG_MIPS_BAIKAL
+	struct be_bc   *bc;
+#endif
 	struct clk     *clk;
 };
+
+#ifdef CONFIG_MIPS_BAIKAL
+static int dw_spi_mmio_boot_enable(struct dw_spi_mmio *dwsmmio,
+				    struct platform_device *pdev)
+{
+	struct device_node *bc_np;
+
+	/* Enable the DW SPI controller interface if presented */
+	bc_np = of_parse_phandle(pdev->dev.of_node, "boot-controller", 0);
+	if (bc_np) {
+		dwsmmio->bc = of_find_be_bc_device_by_node(bc_np);
+		of_node_put(bc_np);
+		if (!dwsmmio->bc) {
+			dev_err(&pdev->dev, "missing boot-controller of-node\n");
+			return -EINVAL;
+		}
+		be_bc_enable_spi(dwsmmio->bc);
+	}
+
+	return 0;
+}
+
+static void dw_spi_mmio_boot_disable(struct dw_spi_mmio *dwsmmio)
+{
+	if (dwsmmio->bc)
+		be_bc_disable_spi(dwsmmio->bc);
+}
+#else
+static int dw_spi_mmio_boot_enable(struct dw_spi_mmio *dwsmmio,
+				   struct platform_device *pdev) {
+	return 0;
+}
+
+static void dw_spi_mmio_boot_disable(struct dw_spi_mmio *dwsmmio) {}
+#endif
 
 static int dw_spi_mmio_probe(struct platform_device *pdev)
 {
@@ -53,11 +94,8 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 		return PTR_ERR(dws->regs);
 	}
 
+	/* IRQ might be unavailable */
 	dws->irq = platform_get_irq(pdev, 0);
-	if (dws->irq < 0) {
-		dev_err(&pdev->dev, "no irq resource?\n");
-		return dws->irq; /* -ENXIO */
-	}
 
 	dwsmmio->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dwsmmio->clk))
@@ -66,7 +104,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dws->bus_num = pdev->id;
+	dws->bus_num = of_alias_get_id(pdev->dev.of_node, "ssi");
 
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
 
@@ -99,12 +137,26 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = dw_spi_add_host(&pdev->dev, dws);
+	ret = dw_spi_mmio_boot_enable(dwsmmio, pdev);
 	if (ret)
 		goto out;
 
+	pdev->dev.dma_mask = NULL;
+	ret = dw_spi_add_host(&pdev->dev, dws);
+	if (ret)
+		goto out_boot;
+
+	/* Dump DW component type */
+	ret = readl(dws->regs + DW_SPI_VERSION);
+	dev_info(&pdev->dev, "DW SPI ID: 0x%08X, Version: %c.%c%c%c\n",
+		readl(dws->regs + DW_SPI_IDR), (ret >> 24) & 0xff,
+		(ret >> 16) & 0xff, (ret >> 8) & 0xff, ret & 0xff);
+
 	platform_set_drvdata(pdev, dwsmmio);
 	return 0;
+
+out_boot:
+	dw_spi_mmio_boot_disable(dwsmmio);
 
 out:
 	clk_disable_unprepare(dwsmmio->clk);
@@ -116,6 +168,9 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 	struct dw_spi_mmio *dwsmmio = platform_get_drvdata(pdev);
 
 	dw_spi_remove_host(&dwsmmio->dws);
+
+	dw_spi_mmio_boot_disable(dwsmmio);
+
 	clk_disable_unprepare(dwsmmio->clk);
 
 	return 0;

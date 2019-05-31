@@ -43,6 +43,12 @@ config MDIO_BITBANG
 
 	  If in doubt, say N.
 
+config BAIKAL_MDIO
+	tristate "Driver for the Baikal Electronics GPIO MDIO bus"
+	depends on OF && GPIOLIB && MDIO_BITBANG
+	---help---
+	  Support for Baikal Electronics GPIO MDIO bus
+
 config MDIO_BUS_MUX
 	tristate
 	depends on OF_MDIO
@@ -264,6 +270,13 @@ config MARVELL_PHY
 	---help---
 	  Currently has a driver for the 88E1011S
 
+config 88X2222_PHY
+	tristate "Drivers for Marvell 88X2222 Tanceiver"
+	---help---
+	  Support for Marvell Integrated Dual-port
+	  Multi-speed Ethernet Transceivers.
+	  Currently supports 88x2222
+
 config MICREL_PHY
 	tristate "Micrel PHYs"
 	---help---
@@ -277,7 +290,7 @@ config MICROCHIP_PHY
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
 	---help---
-	  Currently supports the VSC8531 and VSC8541 PHYs
+	  Currently supports VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"

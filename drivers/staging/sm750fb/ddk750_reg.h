@@ -532,6 +532,17 @@
 #define GPIO_INTERRUPT_STATUS_26                        BIT(17)
 #define GPIO_INTERRUPT_STATUS_25                        BIT(16)
 
+#define PWM_0                                           0x010020
+#define PWM_1                                           0x010024
+#define PWM_2                                           0x010028
+#define PWM_COUNTER_HIGH_SHIFT                          20
+#define PWM_COUNTER_HIGH_MASK                           (0xFFF << 20)
+#define PWM_COUNTER_LOW_SHIFT                           8
+#define PWM_COUNTER_LOW_MASK                            (0xFFF << 8)
+#define PWM_STATUS_SHIFT                                0
+#define PWM_STATUS_MASK                                 (0xFF << 0)
+#define PWM_STATUS_ENABLE                               BIT(0)
+#define PWM_STATUS_INTERRUPT_PENDING                    BIT(3)
 
 #define PANEL_DISPLAY_CTRL                            0x080000
 #define PANEL_DISPLAY_CTRL_RESERVED_MASK              0xc0f08000

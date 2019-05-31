@@ -112,6 +112,7 @@ int dw_pcie_cfg_read(void __iomem *addr, int size, u32 *val)
 
 	if (size == 4)
 		*val = readl(addr);
+#ifndef __mips__
 	else if (size == 2)
 		*val = readw(addr);
 	else if (size == 1)
@@ -120,6 +121,24 @@ int dw_pcie_cfg_read(void __iomem *addr, int size, u32 *val)
 		*val = 0;
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 	}
+#else	/* need aligned word access */
+	else {
+		uintptr_t a = (uintptr_t)addr;
+		int adj = (a & 3) * 8;
+		u32 t;
+
+		addr = (void __iomem *)(a & ~3);
+		t = readl(addr);
+		if (size == 2)
+			*val = (t >> adj) & 0xffff;
+		else if (size == 1)
+			*val = (t >> adj) & 0xff;
+		else {
+			*val = 0;
+			return PCIBIOS_BAD_REGISTER_NUMBER;
+		}
+	}
+#endif
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -131,12 +150,30 @@ int dw_pcie_cfg_write(void __iomem *addr, int size, u32 val)
 
 	if (size == 4)
 		writel(val, addr);
+#ifndef __mips__
 	else if (size == 2)
 		writew(val, addr);
 	else if (size == 1)
 		writeb(val, addr);
 	else
 		return PCIBIOS_BAD_REGISTER_NUMBER;
+#else
+	else if (size != 2 && size != 1)
+		return PCIBIOS_BAD_REGISTER_NUMBER;
+	else {
+		uintptr_t a = (uintptr_t)addr;
+		int adj = (a & 3) * 8;
+		u32 t;
+
+		addr = (void __iomem *)(a & ~3);
+		t = readl(addr);
+		if (size == 2)
+			t = (t & ~(0xffff << adj)) | (val & 0xffff) << adj;
+		else
+			t = (t & ~(0xff << adj)) | (val & 0xff) << adj;
+		writel(t, addr);
+	}
+#endif
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -406,9 +443,6 @@ static int dw_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 	int irq, pos;
 	struct pcie_port *pp = pdev->bus->sysdata;
 
-	if (desc->msi_attrib.is_msix)
-		return -EINVAL;
-
 	irq = assign_irq(1, desc, &pos);
 	if (irq < 0)
 		return irq;
@@ -426,9 +460,15 @@ static int dw_msi_setup_irqs(struct msi_controller *chip, struct pci_dev *pdev,
 	struct msi_desc *desc;
 	struct pcie_port *pp = pdev->bus->sysdata;
 
-	/* MSI-X interrupts are not supported */
-	if (type == PCI_CAP_ID_MSIX)
-		return -EINVAL;
+	if (type == PCI_CAP_ID_MSIX) {
+		for_each_pci_msi_entry(desc, pdev) {
+			irq = assign_irq(1, desc, &pos);
+			if (irq < 0)
+				return irq;
+			dw_msi_setup_msg(pp, irq, pos);
+		}
+		return 0;
+	}
 
 	WARN_ON(!list_is_singular(&pdev->dev.msi_list));
 	desc = list_entry(pdev->dev.msi_list.next, struct msi_desc, list);
@@ -530,6 +570,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		pp->cfg1_size = resource_size(cfg_res)/2;
 		pp->cfg0_base = cfg_res->start;
 		pp->cfg1_base = cfg_res->start + pp->cfg0_size;
+		cfg_res->name = "PCIe config";
+		devm_request_resource(&pdev->dev, &iomem_resource, cfg_res);
 	} else if (!pp->va_cfg0_base) {
 		dev_err(pp->dev, "missing *config* reg space\n");
 	}
@@ -553,14 +595,14 @@ int dw_pcie_host_init(struct pcie_port *pp)
 				resource_list_destroy_entry(win);
 			} else {
 				pp->io = win->res;
-				pp->io->name = "I/O";
+				pp->io->name = "PCIe I/O";
 				pp->io_size = resource_size(pp->io);
 				pp->io_bus_addr = pp->io->start - win->offset;
 			}
 			break;
 		case IORESOURCE_MEM:
 			pp->mem = win->res;
-			pp->mem->name = "MEM";
+			pp->mem->name = "PCIe MEM";
 			pp->mem_size = resource_size(pp->mem);
 			pp->mem_bus_addr = pp->mem->start - win->offset;
 			break;

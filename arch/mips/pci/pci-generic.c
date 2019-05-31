@@ -50,3 +50,21 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	pci_read_bridge_bases(bus);
 }
+
+int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr)
+{
+	void __iomem *io_virt;
+
+	pr_debug("pci_remap_iospace: %pa[p] -> %pa[p]\n", &res->start, &phys_addr);
+
+	if (phys_addr & ~PAGE_MASK)
+		return -EINVAL;
+
+	io_virt = ioremap_uc(phys_addr, resource_size(res));
+	if (!io_virt)
+		return -ENODEV;
+
+	set_io_port_base((unsigned long)io_virt);
+
+	return 0;
+}

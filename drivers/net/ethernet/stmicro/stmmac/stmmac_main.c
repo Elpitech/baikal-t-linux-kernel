@@ -754,7 +754,11 @@ static void stmmac_adjust_link(struct net_device *dev)
 				if (likely((priv->plat->has_gmac) ||
 					   (priv->plat->has_gmac4))) {
 					ctrl |= priv->hw->link.port;
+#ifdef CONFIG_BAIKAL_ERRATA_GMAC
+					if (phydev->speed == SPEED_10) {
+#else
 					if (phydev->speed == SPEED_100) {
+#endif
 						ctrl |= priv->hw->link.speed;
 					} else {
 						ctrl &= ~(priv->hw->link.speed);
@@ -1617,6 +1621,17 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		dev_err(priv->device, "Failed to reset the dma\n");
 		return ret;
 	}
+
+#ifdef CONFIG_MIPS_BAIKAL
+	/* Need to reinitialize PHY since it has just been reset */
+	if (priv->plat->mdio_bus_data->delays[2])
+		msleep(DIV_ROUND_UP(priv->plat->mdio_bus_data->delays[2], 1000));
+	ret = phy_init_hw(priv->phydev);
+	if (ret) {
+		dev_err(priv->device, "Failed to reinit PHY\n");
+		return ret;
+	}
+#endif
 
 	priv->hw->dma->init(priv->ioaddr, pbl, fixed_burst, mixed_burst,
 			    aal, priv->dma_tx_phy, priv->dma_rx_phy, atds);
@@ -3203,7 +3218,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* Get the HW capability (new GMAC newer than 3.50a) */
 	priv->hw_cap_support = stmmac_get_hw_features(priv);
 	if (priv->hw_cap_support) {
-		pr_info(" DMA HW capability register supported");
+		pr_info(" DMA HW capability register supported\n");
 
 		/* We can override some gmac/dma configuration fields: e.g.
 		 * enh_desc, tx_coe (e.g. that are passed through the
