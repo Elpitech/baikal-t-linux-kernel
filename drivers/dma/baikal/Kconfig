@@ -8,6 +8,7 @@ config BAIKAL_EDMA_CORE
 
 config BAIKAL_EDMA
 	bool "Baikal Electronics PCIe eDMA controller"
+	depends on MIPS_BAIKAL && PCI
 	select BAIKAL_EDMA_CORE
 	help
 	  Support the Baikal SoC PCIe DMA controller.
