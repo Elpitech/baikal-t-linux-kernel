@@ -42,6 +42,7 @@ struct be_cpufreq {
 	struct clk *coreclk;			/* Core PLL parent of CPU clk*/
 	unsigned int max_freq;			/* KHz */
 	unsigned int min_freq;			/* KHz */
+	unsigned int step_freq;			/* KHz */
 	unsigned int latency;			/* uS  */
 };
 static struct be_cpufreq *cpufreq;
@@ -97,7 +98,7 @@ static int be_cpufreq_init(struct cpufreq_policy *policy)
 	unsigned int steps, freq;
 	int i, ret;
 
-	steps = ((cpufreq->max_freq - cpufreq->min_freq) / PLL_FREQ_STEP) + 1;
+	steps = ((cpufreq->max_freq - cpufreq->min_freq) / cpufreq->step_freq) + 1;
 
 	freq_tbl = kzalloc(sizeof(*freq_tbl) * (steps + 1),
 					GFP_KERNEL);
@@ -116,7 +117,7 @@ static int be_cpufreq_init(struct cpufreq_policy *policy)
 			freq_tbl[i].frequency = freq;
 		dev_dbg(cpufreq->dev, "CPUFreq index %d: frequency %d KHz\n", i,
 			freq_tbl[i].frequency);
-		freq += PLL_FREQ_STEP;
+		freq += cpufreq->step_freq;
 	}
 	dev_info(cpufreq->dev, "CPU frequency first index %d: %d KHz\n", 0,
 		 freq_tbl[0].frequency);
@@ -208,6 +209,10 @@ static int be_cpufreq_probe(struct platform_device *pdev)
 		cpufreq->max_freq = PLL_FREQ_MAX * 1000;
 	cpufreq->max_freq = cpufreq->max_freq / 1000;
 
+	if (of_property_read_u32_index(np, "clock-frequency-range", 2,
+		&cpufreq->step_freq))
+		cpufreq->step_freq = PLL_FREQ_STEP * 1000;
+	cpufreq->step_freq = cpufreq->step_freq / 1000;
 
 	be_cpufreq_driver.driver_data = (void *)cpufreq;
 
