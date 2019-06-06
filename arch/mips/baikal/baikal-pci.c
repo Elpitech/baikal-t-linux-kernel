@@ -21,23 +21,17 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/device.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 
-#include <asm/mips-cm.h>
-#include <asm/mips-boards/generic.h>
 #include <asm/mach-baikal/pci-baikal.h>
 
 #define PCIE_PHY_RETRIES	1000000
 #define PCIE_ERROR_VALUE	0xFFFFFFFF
 #define PHY_ALL_LANES		0xF
-#define PHY_LANE0			0x1
+#define PHY_LANE0		0x1
 
-#define OK					0
-#define ERROR				-1
+#define OK			0
+#define ERROR			-1
 #define ERROR_MISMATCH1		0x0010
 #define ERROR_MISMATCH2		0x0020
 #define ERROR_MISMATCH3		0x0040
@@ -74,7 +68,7 @@ static uint32_t dw_pcie_phy_read(uint32_t phy_addr)
 	return PCIE_ERROR_VALUE;
 }
 
-static uint32_t dw_pcie_phy_write(uint32_t phy_addr, uint32_t val)
+static uint32_t __maybe_unused dw_pcie_phy_write(uint32_t phy_addr, uint32_t val)
 {
 	uint32_t reg;
 	int i;
@@ -101,27 +95,6 @@ static uint32_t dw_pcie_phy_write(uint32_t phy_addr, uint32_t val)
 
 	/* return error */
 	return PCIE_ERROR_VALUE;
-}
-
-void dw_set_iatu_region(int dir, int index, int base_addr, int limit_addr, int target_addr, int tlp_type)
-{
-	WRITE_PCIE_REG(PCIE_IATU_VIEWPORT_OFF, ((index << REGION_INDEX_SHIFT) | (dir << REGION_DIR_SHIFT)));
-	WRITE_PCIE_REG(PCIE_IATU_LWR_BASE_ADDR_OFF_OUTBOUND_0, (base_addr << LWR_BASE_RW_SHIFT));
-	WRITE_PCIE_REG(PCIE_IATU_UPR_BASE_ADDR_OFF_OUTBOUND_0, 0);	
-	WRITE_PCIE_REG(PCIE_IATU_LIMIT_ADDR_OFF_OUTBOUND_0, (limit_addr << LIMIT_ADDR_RW_SHIFT));
-	WRITE_PCIE_REG(PCIE_IATU_LWR_TARGET_ADDR_OFF_OUTBOUND_0, (target_addr << LWR_TARGET_RW_SHIFT));
-	WRITE_PCIE_REG(PCIE_IATU_UPR_TARGET_ADDR_OFF_OUTBOUND_0, 0);
-	WRITE_PCIE_REG(PCIE_IATU_REGION_CTRL_1_OFF_OUTBOUND_0, (tlp_type << IATU_REGION_CTRL_1_OFF_OUTBOUND_0_TYPE_SHIFT));
-#ifdef CONFIG_PCI_ECAM
-	if (tlp_type == TLP_TYPE_CFGRD0 || tlp_type == TLP_TYPE_CFGRD1)
-		WRITE_PCIE_REG(PCIE_IATU_REGION_CTRL_2_OFF_OUTBOUND_0, IATU_REGION_CTRL_2_OFF_OUTBOUND_0_REGION_EN | IATU_REGION_CTRL_2_OFF_OUTBOUND_0_CFG_SHIFT_MODE);
-	else
-		WRITE_PCIE_REG(PCIE_IATU_REGION_CTRL_2_OFF_OUTBOUND_0, IATU_REGION_CTRL_2_OFF_OUTBOUND_0_REGION_EN);
-#else
-	WRITE_PCIE_REG(PCIE_IATU_REGION_CTRL_2_OFF_OUTBOUND_0, IATU_REGION_CTRL_2_OFF_OUTBOUND_0_REGION_EN);
-#endif /* CONFIG_PCI_ECAM */
-
-	wmb();	
 }
 
 #ifdef CONFIG_MIPS_BAIKAL_T
@@ -157,8 +130,8 @@ static int dw_init_pll(const unsigned int pmu_register)
 int dw_pcie_init(void)
 {
 	volatile uint32_t reg;
-	int i, st = 0;
 	uint32_t rstc_mask = 0;
+	int i, st = 0;
 
 	/* PMU PCIe init. */
 
@@ -204,13 +177,13 @@ int dw_pcie_init(void)
 	reg &= ~rstc_mask;
 	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
 	reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-	pr_info("%s: PCIE_RSTC after reset: %08x (mask was %x)\n", __func__, reg, rstc_mask);
+	pr_debug("%s: PCIE_RSTC after reset: %08x (mask was %x)\n", __func__, reg, rstc_mask);
 	if (reg & 0x3f11) {
 		reg &= ~0x3f11;
 		WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
 		usleep_range(10, 20);
 		reg = READ_PMU_REG(BK_PMU_PCIE_RSTC);
-		pr_info("%s: new PCIE_RSTC: %08x\n", __func__, reg);
+		pr_debug("%s: new PCIE_RSTC: %08x\n", __func__, reg);
 	}
 
 	/* 3.2 Set writing to RO Registers Using DBI */
@@ -264,7 +237,7 @@ int dw_pcie_init(void)
 		PMU_PCIE_RSTC_STICKY_RST | PMU_PCIE_RSTC_NONSTICKY_RST | PMU_PCIE_RSTC_HOT_RESET);
 	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
 
-	pr_info("%s: DEV_ID_VEND_ID=0x%x CLASS_CODE_REV_ID=0x%x\n", __func__,
+	pr_debug("%s: DEV_ID_VEND_ID=0x%x CLASS_CODE_REV_ID=0x%x\n", __func__,
 		READ_PCIE_REG(PCIE_TYPE1_DEV_ID_VEND_ID_REG), READ_PCIE_REG(PCIE_TYPE1_CLASS_CODE_REV_ID_REG));
 
 	/* 5. Set the fast mode. */
@@ -275,7 +248,7 @@ int dw_pcie_init(void)
 	reg = dw_pcie_phy_read(PCIE_PHY_DWC_GLBL_PLL_CFG_0);
 	reg &= ~PCS_SDS_PLL_FTHRESH_MASK;
 	dw_pcie_phy_write(PCIE_PHY_DWC_GLBL_PLL_CFG_0, reg);
-	
+
 	reg = dw_pcie_phy_read(PCIE_PHY_DWC_GLBL_TERM_CFG);
 	reg |= FAST_TERM_CAL;
 	dw_pcie_phy_write(PCIE_PHY_DWC_GLBL_TERM_CFG, reg);
@@ -283,7 +256,7 @@ int dw_pcie_init(void)
 	reg = dw_pcie_phy_read(PCIE_PHY_DWC_RX_LOOP_CTRL);
 	reg |= (FAST_OFST_CNCL | FAST_DLL_LOCK);
 	dw_pcie_phy_write(PCIE_PHY_DWC_RX_LOOP_CTRL, reg);
-	
+
 	reg = dw_pcie_phy_read(PCIE_PHY_DWC_TX_CFG_0);
 	reg |= (FAST_TRISTATE_MODE | FAST_RDET_MODE | FAST_CM_MODE);
 	dw_pcie_phy_write(PCIE_PHY_DWC_TX_CFG_0, reg);*/
@@ -324,8 +297,8 @@ int dw_pcie_init(void)
 	dw_pcie_phy_write(PCIE_PHY_DWC_RX_LOOP_CTRL, reg);
 
 	//reg = dw_pcie_phy_read(PCIE_PHY_DWC_RX_AEQ_VALBBD_2);
-    reg = 0x3F;
-    dw_pcie_phy_write(PCIE_PHY_DWC_RX_AEQ_VALBBD_2, reg);
+	reg = 0x3F;
+	dw_pcie_phy_write(PCIE_PHY_DWC_RX_AEQ_VALBBD_2, reg);
 
 	//reg = dw_pcie_phy_read(PCIE_PHY_DWC_RX_AEQ_VALBBD_1);
 	reg = 0;
@@ -337,17 +310,6 @@ int dw_pcie_init(void)
 	reg |= (0x00ff0000 | (PCIE_ROOT_BUS_NUM << 8)); /* IDT PCI Bridge don't like the primary bus equals 0. */
 	WRITE_PCIE_REG(PCIE_SEC_LAT_TIMER_SUB_BUS_SEC_BUS_PRI_BUS_REG, reg);
 
-#ifndef CONFIG_PCIE_DW_PLAT
-	/* Setup memory base. */
-	reg = ((PHYS_PCIMEM_LIMIT_ADDR & 0xfff00000) | ((PHYS_PCIMEM_BASE_ADDR & 0xfff00000) >> 16));
-	WRITE_PCIE_REG(PCIE_MEM_LIMIT_MEM_BASE_REG, reg);
-
-	/* Setup IO base. */
-	reg = ((PHYS_PCIIO_LIMIT_ADDR & 0x0000f000) | ((PHYS_PCIIO_BASE_ADDR & 0x0000f000) >> 8));
-	WRITE_PCIE_REG(PCIE_SEC_STAT_IO_LIMIT_IO_BASE_REG, reg);
-	reg = ((PHYS_PCIIO_LIMIT_ADDR & 0xffff0000) | ((PHYS_PCIIO_BASE_ADDR & 0xffff0000) >> 16));
-	WRITE_PCIE_REG(PCIE_IO_LIMIT_UPPER_IO_BASE_UPPER_REG, reg);
-#else
 	WRITE_PCIE_REG(PCI_BASE_ADDRESS_0, 0);
 	WRITE_PCIE_REG(PCI_BASE_ADDRESS_1, 0);
 	WRITE_PCIE_REG(PCIE_SEC_STAT_IO_LIMIT_IO_BASE_REG, 0);
@@ -355,7 +317,6 @@ int dw_pcie_init(void)
 	WRITE_PCIE_REG(PCIE_PREF_MEM_LIMIT_PREF_MEM_BASE_REG, 0);
 	WRITE_PCIE_REG(PCIE_PREF_BASE_UPPER_REG, 0);
 	WRITE_PCIE_REG(PCIE_PREF_LIMIT_UPPER_REG, 0);
-#endif
 
 	/* 8. Set master for PCIe EP. */
 	reg = READ_PCIE_REG(PCIE_TYPE1_STATUS_COMMAND_REG);
@@ -392,30 +353,7 @@ int dw_pcie_init(void)
 	WRITE_PCIE_REG(PCIE_ADV_ERR_CAP_CTRL_OFF, reg);
 #endif /* DW_CHECK_ECRC */
 
-	/* 9. Set Inbound/Outbound iATU regions. */
-
-	/* dw_set_iatu_region(dir,  index, base_addr, limit_addr, target_addr, tlp_type) */
-
-#ifndef CONFIG_PCIE_DW_PLAT
-	dw_set_iatu_region(REGION_DIR_OUTBOUND, IATU_RD0_INDEX, PHYS_PCI_RD0_BASE_ADDR >> 16,
-				PHYS_PCI_RD0_LIMIT_ADDR >> 16, 0x0000, TLP_TYPE_CFGRD0);
-
-	dw_set_iatu_region(REGION_DIR_OUTBOUND, IATU_RD1_INDEX, PHYS_PCI_RD1_BASE_ADDR >> 16,
-				PHYS_PCI_RD1_LIMIT_ADDR >> 16, 0x0000, TLP_TYPE_CFGRD1);
-
-	dw_set_iatu_region(REGION_DIR_OUTBOUND, IATU_MEM_INDEX, PHYS_PCIMEM_BASE_ADDR >> 16,
-				PHYS_PCIMEM_LIMIT_ADDR >> 16, (PCI_BUS_PHYS_PCIMEM_BASE_ADDR) >> 16, TLP_TYPE_MEM);
-
-	dw_set_iatu_region(REGION_DIR_OUTBOUND, IATU_IO_INDEX, PHYS_PCIIO_BASE_ADDR >> 16,
-				PHYS_PCIIO_LIMIT_ADDR >> 16, PHYS_PCIIO_BASE_ADDR >> 16, TLP_TYPE_IO);
-#endif
-
-	/*
-	 * Set GEN1 speed. In case EP supports GEN2
-	 * a link will be retrained later (see fixup-baikal.c).
-	 * At that moment it's impossible to
-	 * configure a link on GEN3 speed.
-	 */
+	/* 9. Set GENx speed in accordance with the Baikal-T(1) SoC rev. */
 	reg = READ_PCIE_REG(PCIE_LINK_CONTROL2_LINK_STATUS2_REG);
 	reg &= ~PCIE_LINK_CONTROL2_GEN_MASK;
 #ifdef CONFIG_MIPS_BAIKAL_T1
@@ -424,8 +362,6 @@ int dw_pcie_init(void)
 	reg |= PCIE_LINK_CONTROL2_GEN2;
 #endif
 	WRITE_PCIE_REG(PCIE_LINK_CONTROL2_LINK_STATUS2_REG, reg);
-
-	wmb();
 
 	/* 10. Set LTSSM enable, app_ltssm_enable=0x1 */
 	reg = READ_PMU_REG(BK_PMU_PCIE_GENC);
@@ -453,7 +389,6 @@ int dw_pcie_init(void)
 		}
 	}
 
-
 	if (!st) {
 		/* Check the speed is set in PCIE_LINK_CONTROL_LINK_STATUS_REG. */
 		reg = READ_PCIE_REG(PCIE_LINK_CONTROL_LINK_STATUS_REG);
@@ -463,8 +398,6 @@ int dw_pcie_init(void)
 	} else {
 		pr_err("%s: PCIe error code = 0x%x\n", __func__, st);
 	}
-
-	wmb();
 
 	return st;
 }

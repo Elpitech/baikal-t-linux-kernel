@@ -27,21 +27,6 @@
 
 #define DRV_NAME	"baikal-edma"
 
-#ifdef CONFIG_MIPS_BAIKAL
-#include <linux/pci.h>
-
-static struct baikal_dma_chip *baikal_dma_chip;
-
-static void baikal_t1_pcie_dmac_fixup(struct pci_dev *pdev)
-{
-	if (baikal_dma_chip) {
-		dev_info(&pdev->dev, "eDMA support enabled\n");
-		dev_set_drvdata(&pdev->bus->dev, baikal_dma_chip);
-	}
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, baikal_t1_pcie_dmac_fixup);
-#endif /* CONFIG_MIPS_BAIKAL */
-
 #ifdef CONFIG_OF
 	static struct baikal_dma_platform_data *
 baikal_dma_parse_dt(struct platform_device *pdev)
@@ -127,10 +112,6 @@ static int edma_probe(struct platform_device *pdev)
 	/* this will probably work on platforms with traditional PCI software stack */
 	/* such as Baikal-M ARM based SoC*/
 	platform_set_drvdata(pdev, chip);
-#ifdef CONFIG_MIPS_BAIKAL
-	/* this is a workaround for legacy PCI stack on Baikal-T1 MIPS based SoC */
-	baikal_dma_chip = chip;
-#endif /* CONFIG_MIPS_BAIKAL */
 
 	return 0;
 

@@ -24,11 +24,10 @@
 #include <asm/mips-cm.h>            /* Coherence manager */
 #include <asm/traps.h>
 #include <asm/mach-baikal/hardware.h>
+#include <asm/mach-baikal/pci-baikal.h>
 #include <asm/mips-boards/generic.h>
 
 #include "common.h"              /* Common Baikal definitions */
-
-extern int dw_pcie_init(void);
 
 static void __init plat_setup_iocoherency(void)
 {
@@ -46,28 +45,17 @@ static int __init baikal_platform_setup(void)
 {
    int ret = 0;
 
-#ifdef CONFIG_PCI
    /* PCI init */
-#ifdef CONFIG_PCIE_BAIKAL_INIT
+#if defined(CONFIG_PCI) && defined(CONFIG_PCIE_BAIKAL_INIT)
    ret = dw_pcie_init();
 #endif
-
-#ifdef CONFIG_PCI_DRIVERS_LEGACY
-   if (!ret)
-      mips_pcibios_init();
-#endif
-#endif /* CONFIG_PCI */
 
    /* Setup IO Coherency */
    plat_setup_iocoherency();
    /* No critical actions - always return success */
    return ret;
 }
-#ifndef CONFIG_PCIE_DW_PLAT
-late_initcall(baikal_platform_setup);
-#else
 arch_initcall(baikal_platform_setup);
-#endif
 
 void baikal_be_init(void)
 {

@@ -107,42 +107,5 @@ static void pci_fixup_video(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA,
 				8, pci_fixup_video);
-#else
-int /* __init*/ baikal_find_vga_mem_init(void)
-{
-	struct pci_dev *dev = 0;
-	struct resource *r;
-	bool found = false;
-	int idx;
-
-	if (uca_start)
-		return 0;
-
-	for_each_pci_dev(dev) {
-		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
-			for (idx = 0; idx < PCI_NUM_RESOURCES; idx++) {
-				r = &dev->resource[idx];
-				if (!r->start && r->end)
-					continue;
-				if (r->flags & IORESOURCE_IO)
-					continue;
-				if (r->flags & IORESOURCE_MEM) {
-					uca_start = r->start;
-					uca_end = r->end;
-					found = true;
-					goto found_exit;
-				}
-			}
-		}
-	}
-
-found_exit:
-	if (found)
-		pr_info("VGA MMIO access accelerated\n");
-
-	return 0;
-}
-
-late_initcall(baikal_find_vga_mem_init);
-#endif
-#endif /* !CONFIG_CPU_SUPPORTS_UNCACHED_ACCELERATED */
+#endif /* CONFIG_PCIE_DW_PLAT */
+#endif /* CONFIG_CPU_SUPPORTS_UNCACHED_ACCELERATED */

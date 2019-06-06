@@ -22,20 +22,8 @@
 #ifndef __PCI_BAIKAL_H__
 #define __PCI_BAIKAL_H__
 
-#include <linux/interrupt.h>
-#include <asm/mach-baikal/pci-t1.h>
-
-/* Define DW_CHECK_ECRC to add checking CRC. */
-//#define DW_CHECK_ECRC
-
-#define PCIE_CFG_BASE					0xBF052000
-#define PMU_BASE						0xBF04D000
-/* Start enumerating the busses from 1 since IDT-switch oddly acts, when it's
- * directly connected to the RC and has bus number 0 */
-#define PCIE_ROOT_BUS_NUM      1
-
-#define PCI_RD0_BASE_ADDR		KSEG1ADDR(PHYS_PCI_RD0_BASE_ADDR)
-#define PCI_RD1_BASE_ADDR		KSEG1ADDR(PHYS_PCI_RD1_BASE_ADDR)
+#define PCIE_CFG_BASE				0xBF052000
+#define PMU_BASE				0xBF04D000
 
 #define PCIE_TYPE1_DEV_ID_VEND_ID_REG		(0x0)	/* Device ID and Vendor ID Register. */
 #define PCIE_TYPE1_STATUS_COMMAND_REG		(0x4)	/* Command and Status Register. */
@@ -332,36 +320,10 @@
 #define PCIE_STA_LINK_WIDTH_MASK		0x3f00000
 #define PCIE_STA_LINK_WIDTH_SHIFT		(20)
 
-/* IATU_VIEWPORT_OFF */
-#define REGION_DIR_SHIFT			(31)		/* Region Direction. */
-#define REGION_INDEX_SHIFT			(0)		/* Region Index. */
-#define REGION_DIR_OUTBOUND			(0)
-#define REGION_DIR_INBOUND			(1)
-
 /* TYPE1_STATUS_COMMAND_REG */
 #define TYPE1_STATUS_COMMAND_REG_BME		(1 << 2)
 #define TYPE1_STATUS_COMMAND_REG_MSE		(1 << 1)
 #define TYPE1_STATUS_COMMAND_REG_IOSE		(1 << 0)
-
-/* IATU_LWR_BASE_ADDR_OFF_OUTBOUND_0 */
-#define LWR_BASE_RW_SHIFT			(16)
-
-/* IATU_LIMIT_ADDR_OFF_OUTBOUND_0 */
-#define LIMIT_ADDR_RW_SHIFT			(16)
-
-/* IATU_LWR_TARGET_ADDR_OFF_OUTBOUND_0 */
-#define LWR_TARGET_RW_SHIFT			(16)
-
-/* IATU_REGION_CTRL_1_OFF_OUTBOUND_0 */
-#define IATU_REGION_CTRL_1_OFF_OUTBOUND_0_TYPE_SHIFT	(0)
-#define TLP_TYPE_MEM				(0)
-#define TLP_TYPE_IO				(2)
-#define TLP_TYPE_CFGRD0				(4)
-#define TLP_TYPE_CFGRD1				(5)
-
-/* IATU_REGION_CTRL_2_OFF_OUTBOUND_0 */
-#define IATU_REGION_CTRL_2_OFF_OUTBOUND_0_REGION_EN	(1 << 31)
-#define IATU_REGION_CTRL_2_OFF_OUTBOUND_0_CFG_SHIFT_MODE	(1 << 28)
 
 /* PCIE_LINK_CONTROL2_LINK_STATUS2 */
 #define PCIE_LINK_CONTROL2_GEN_MASK		(0xF)
@@ -666,8 +628,6 @@
 #define READ_PMU_REG(r)		readl((const volatile void *)(r))
 #define WRITE_PMU_REG(r, v)	writel(v, (volatile void *)(r))
 
-void dw_set_iatu_region(int dir, int index, int base_addr, int limit_addr, int target_addr, int tlp_type);
-irqreturn_t dw_msi_interrupt(int id, void *dev_id);
-int dw_msi_init(void);
+int dw_pcie_init(void);
 
 #endif /* __PCI_BAIKAL_H__ */
