@@ -294,10 +294,6 @@ void baikal_kexec_shutdown(void)
 	/* Reset PCIe */
 	/* dw_pcie_kexec_prepare(); */
 
-	/* Flush $ */
-	pr_debug("baikal-kexec - baikal_kexec_shutdown: flush L2$\n");
-	__flush_scache();
-	pr_debug("baikal-kexec - baikal_kexec_shutdown: flush L1I$ & L1D$\n");
 	__flush_cache_all();
 
 	/* Shutdown CPU core1 */
