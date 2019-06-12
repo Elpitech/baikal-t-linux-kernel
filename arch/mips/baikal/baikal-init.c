@@ -48,12 +48,6 @@
 
 #include "common.h"
 
-#ifdef CONFIG_KEXEC
-#include <asm/kexec.h>
-extern int baikal_kexec_prepare(struct kimage *);
-extern void baikal_kexec_shutdown(void);
-#endif
-
 #ifndef CONFIG_MIPS_CPC
 void __iomem *mips_cpc_base;
 #endif

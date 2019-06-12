@@ -27,4 +27,10 @@
 extern __iomem void *plat_of_remap_node(const char *node);
 extern int device_tree_early_init(void);
 
+#ifdef CONFIG_KEXEC
+#include <asm/kexec.h>
+extern int baikal_kexec_prepare(struct kimage *kimage);
+extern void baikal_kexec_shutdown(void);
+#endif
+
 #endif /* __BAIKAL_COMMON_H */

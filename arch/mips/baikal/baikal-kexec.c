@@ -34,31 +34,6 @@
 #include <asm/bootinfo.h>
 #include <asm/smp-cps.h>
 #include <asm/mips-cpc.h>
-#include <asm/machine_kexec.h>
-
-/*
- * Boot parameter processing
- */
-
-extern unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
-
-/*
-static void be_kexec_print_args(void)
-{
-	unsigned long argc = (int)kexec_args[0];
-	int i;
-
-	pr_info("kexec_args[0] (argc): %lu\n", argc);
-	pr_info("kexec_args[1] (argv): %p\n", (void *)kexec_args[1]);
-	pr_info("kexec_args[2] (env ): %p\n", (void *)kexec_args[2]);
-	pr_info("kexec_args[3] (dtb ): %p\n", (void *)kexec_args[3]);
-
-	for (i = 0; i < argc; i++) {
-		pr_info("kexec_argv[%d] = %p, %s\n",
-				i, kexec_argv[i], kexec_argv[i]);
-	}
-}
-*/
 
 static int be_kexec_set_dtb(struct kimage *image)
 {
@@ -84,85 +59,6 @@ static int be_kexec_set_dtb(struct kimage *image)
 	}
 
 	return -EINVAL;
-}
-
-static void be_kexec_init_argv(struct kimage *image)
-{
-	void __user *buf = NULL;
-	size_t size = KEXEC_COMMAND_LINE_SIZE;
-	size_t bufsz = 0;
-	struct kexec_segment *seg;
-	int i;
-
-	pr_info("baikal-kexec - be_kexec_init_argv: image %p\n", image);
-
-	for (i = 0; i < image->nr_segments; i++) {
-		seg = &image->segment[i];
-		if (seg->bufsz < 6)
-			continue;
-
-		if (strncmp((char *) seg->buf, "kexec\x20", 6))
-			continue;
-
-		/* don't copy "kexec" */
-		buf = seg->buf + 6;
-		bufsz = seg->bufsz - 6;
-		break;
-	}
-
-	if (!buf)
-		return;
-
-	size = min(size, bufsz);
-	if (size < bufsz)
-		pr_warn("baikal-kexec - be_kexec_init_argv: command line truncated to %zd bytes\n", size);
-
-	/* Copy to kernel space */
-	copy_from_user(kexec_argv_buf, buf, size);
-	kexec_argv_buf[size - 1] = 0;
-}
-
-static void be_kexec_parse_argv(struct kimage *image)
-{
-	char *reboot_code_buffer;
-	int reloc_delta;
-	char *ptr = kexec_argv_buf;
-	int argc = 0;
-	int i;
-
-	pr_info("baikal-kexec - be_kexec_parse_argv: image %p\n", image);
-
-	/* convert command line string to array of parameters (as bootloader does) */
-	while (ptr && *ptr && (argc < KEXEC_MAX_ARGC)) {
-		if (*ptr == ' ') {
-			*ptr++ = '\0';
-			continue;
-		}
-
-		kexec_argv[argc++] = ptr;
-		ptr = strchr(ptr, ' ');
-	}
-
-	if (!argc) {
-		return;
-	}
-
-	pr_info("   # argc    = %d\n", argc);
-	for (i = 0; i < argc; i++) {
-		pr_info("   # argv[%d] = %s\n", i, kexec_argv[i]);
-	}
-
-	kexec_args[0] = argc;						/* # of cmdline params */
-	kexec_args[1] = (unsigned long)kexec_argv;	/* cmdline */
-	kexec_args[2] = 0;							/* addr of env */
-	kexec_args[3] = 0;							/* addr of dtb */
-
-	reboot_code_buffer = page_address(image->control_code_page);
-	reloc_delta = reboot_code_buffer - (char *)kexec_relocate_new_kernel;
-
-	kexec_args[1] += reloc_delta;
-	for (i = 0; i < argc; i++)
-		kexec_argv[i] += reloc_delta;
 }
 
 /*
@@ -252,36 +148,13 @@ static int baikal_kexec_core_down(void)
 
 int baikal_kexec_prepare(struct kimage *kimage)
 {
-	/*
-	 * Whenever arguments passed from kexec-tools, Init the arguments as
-	 * the original ones to try avoiding booting failure.
-	 */
+	kexec_args[0] = 0;
+	kexec_args[1] = 0;
+	kexec_args[2] = 0;
+	kexec_args[3] = 0;
 
 	pr_info("baikal-kexec - baikal_kexec_prepare: kimage %p\n", kimage);
 
-	/*
-	printk("   = fw_arg0 (argc): 0x%lx\n", fw_arg0);
-	printk("   = fw_arg1 (argv): 0x%lx\n", fw_arg1);
-	printk("   = fw_arg2 (env ): 0x%lx\n", fw_arg2);
-	printk("   = fw_arg3 (fdt ): 0x%lx\n", fw_arg3);
-	*/
-
-	/* Comments from u-boot
-	 * fw_arg0 contains argc value (arguments count)
-	 * fw_arg1 contains argv pointer (arguments values)
-	 * fw_arg2 contains pointer to bootloader enviroment variables (not used in Baikal)
-	 * fw_arg3 used to point to DTB location
-	 * like this:
-	 * void *fdt = IS_BUILTIN(CONFIG_BUILTIN_DTB) ? __dtb_start : phys_to_virt(fw_arg3);
-	 * ( from mips/baikal/baikal-of.c: device_tree_early_init(void) )
-	 */
-	kexec_args[0] = fw_arg0;
-	kexec_args[1] = fw_arg1;
-	kexec_args[2] = fw_arg2;
-	kexec_args[3] = fw_arg3;
-
-	be_kexec_init_argv(kimage);
-	be_kexec_parse_argv(kimage);
 	be_kexec_set_dtb(kimage);
 
 	return 0;
@@ -290,9 +163,6 @@ int baikal_kexec_prepare(struct kimage *kimage)
 void baikal_kexec_shutdown(void)
 {
 	pr_info("baikal-kexec: baikal_kexec_shutdown\n");
-
-	/* Reset PCIe */
-	/* dw_pcie_kexec_prepare(); */
 
 	__flush_cache_all();
 
