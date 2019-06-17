@@ -1195,11 +1195,6 @@ config RTC_DRV_NUC900
 	  If you say yes here you get support for the RTC subsystem of the
 	  NUC910/NUC920 used in embedded systems.
 
-config RTC_DRV_DW
-        tristate "Support for Synopsys DesignWare RTC"
-        help
-          Selecting this option will enable the Synopsys DesignWare APB RTC.
-
 config RTC_DRV_OPAL
 	tristate "IBM OPAL RTC driver"
 	depends on PPC_POWERNV
