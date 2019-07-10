@@ -126,6 +126,7 @@
 
 &i2c1 {
 	status = "okay";
+	clock-frequency = <100000>;
 
 	bmc: bmc@8 {
 		compatible = "tp,bt-bmc";
