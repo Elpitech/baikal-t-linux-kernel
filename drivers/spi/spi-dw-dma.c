@@ -11,248 +11,340 @@
 #include <linux/platform_data/dma-dw.h>
 #include <linux/delay.h>
 
+#define MAX_DMA_LEN 4095
 
 #define RX_BUSY     0
 #define TX_BUSY     1
 
-static int  transfer     (struct dw_spi *dws, struct spi_transfer *xfer);
-static int  channel_get  (struct dw_spi *dws);
-static void channel_free (struct dw_spi *dws);
-static void stop         (struct dw_spi *dws);
-
-static int spi_check_status (struct dw_spi *dws)
+static int dw_spi_dma_init(struct dw_spi *dws)
 {
-	return (dw_readl(dws, DW_SPI_SR) & (SR_BUSY | SR_RF_NOT_EMPT));
+	struct device *dev = &(dws->master->dev);
+	int ret;
+
+	/*
+	 * Set max DMA len to be of maximum DW DMA block-size, so the SPI
+	 * subsystem would split the transers up accordingly.
+	 */
+	dws->master->max_dma_len = MAX_DMA_LEN;
+
+	/* Request exclusive access to the rx channel. */
+	dws->rxchan = dma_request_slave_channel_reason(dev->parent, "rx");
+	if(IS_ERR(dws->rxchan)) {
+		dev_dbg(dev->parent, "Failed to get Rx DMA channel\n");
+		return PTR_ERR(dws->rxchan);
+	}
+	dws->master->dma_rx = dws->rxchan;
+
+	/* Request exclusive access to the tx channel. */
+	dws->txchan = dma_request_slave_channel_reason(dev->parent, "tx");
+	if(IS_ERR(dws->txchan)) {
+		ret = PTR_ERR(dws->txchan);
+		dev_dbg(dev->parent, "Failed to get Tx DMA channel\n");
+		goto err_dma_release_rxchan;
+	}
+	dws->master->dma_tx = dws->txchan;
+
+	dws->dma_inited = 1;
+	return 0;
+
+err_dma_release_rxchan:
+	dma_release_channel(dws->rxchan);
+
+	return ret;
 }
 
-static void spi_wait_status(struct dw_spi *dws)
+static void dw_spi_dma_exit(struct dw_spi *dws)
 {
-	/*
-	delay = len*8/freq
-	minimal freq = 8kHz
-	delay(8kHz) = len*8/8kHz = len/1kHz = len*1000us
-	*/
-	long int us = dws->len * 1000;
-	while (spi_check_status(dws) && us--)
+	if (!dws->dma_inited)
+		return;
+
+	dmaengine_terminate_all(dws->txchan);
+	dma_release_channel(dws->txchan);
+
+	dmaengine_terminate_all(dws->rxchan);
+	dma_release_channel(dws->rxchan);
+}
+
+static bool dw_spi_dma_can(struct spi_master *master, struct spi_device *spi,
+			   struct spi_transfer *xfer)
+{
+	struct dw_spi *dws = spi_master_get_devdata(master);
+
+	return (dws->dma_inited) && (xfer->len > dws->fifo_len);
+}
+
+static enum dma_slave_buswidth dw_spi_dma_convert_width(u32 dma_width) {
+	if (dma_width == 1)
+		return DMA_SLAVE_BUSWIDTH_1_BYTE;
+	else if (dma_width == 2)
+		return DMA_SLAVE_BUSWIDTH_2_BYTES;
+
+	return DMA_SLAVE_BUSWIDTH_UNDEFINED;
+}
+
+static inline int dw_spi_dma_tx_busy(struct dw_spi *dws)
+{
+	return (dw_readl(dws, DW_SPI_SR) & (SR_BUSY | SR_TF_EMPT)) ^ SR_TF_EMPT;
+}
+
+static void dw_spi_dma_wait_tx_done(struct dw_spi *dws)
+{
+	unsigned int us = (dw_readl(dws, DW_SPI_TXFLR) + 1) * 1000;
+
+	while (dw_spi_dma_tx_busy(dws) && --us)
 		udelay(1);
 
-	if(!us)
-		dws->master->cur_msg->status = -EIO;   /* timeout */
+	if(!us) {
+		dev_err(&dws->master->cur_msg->spi->dev, "Tx hanged up\n");
+		dws->master->cur_msg->status = -EIO;
+	}
 }
 
-static void tx_done (void *arg)
+static inline int dw_spi_dma_rx_busy(struct dw_spi *dws)
+{
+	return dw_readl(dws, DW_SPI_SR) & (SR_BUSY | SR_RF_NOT_EMPT);
+}
+
+static void dw_spi_dma_wait_rx_done(struct dw_spi *dws)
+{
+	unsigned int us = (dw_readl(dws, DW_SPI_RXFLR) + 1) * 1000;
+
+	while (dw_spi_dma_rx_busy(dws) && --us)
+		udelay(1);
+
+	if(!us) {
+		dev_err(&dws->master->cur_msg->spi->dev, "Rx hanged up\n");
+		dws->master->cur_msg->status = -EIO;
+	}
+}
+
+static void dw_spi_dma_tx_done(void *arg)
 {
 	struct dw_spi *dws = arg;
-	spi_wait_status(dws);
+
+	dw_spi_dma_wait_tx_done(dws);
 	clear_bit(TX_BUSY, &dws->dma_chan_busy);
 	if (test_bit(RX_BUSY, &dws->dma_chan_busy))
 		return;
-	channel_free(dws);
 	spi_finalize_current_transfer(dws->master);
 }
 
-static void rx_done (void *arg)
+static void dw_spi_dma_rx_done(void *arg)
 {
 	struct dw_spi *dws = arg;
-	spi_wait_status(dws);
+
+	dw_spi_dma_wait_rx_done(dws);
 	clear_bit(RX_BUSY, &dws->dma_chan_busy);
 	if (test_bit(TX_BUSY, &dws->dma_chan_busy))
 		return;
-	channel_free(dws);
+
 	spi_finalize_current_transfer(dws->master);
 }
 
-static struct dma_async_tx_descriptor *prepare_tx (
-	struct dw_spi       *dws,
-	struct spi_transfer *xfer)
+static struct dma_async_tx_descriptor *
+dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *desc;
-	struct dma_slave_config config = {0};
+	struct dma_slave_config txconf = {0};
 	int ret;
 
-	if (!xfer->tx_buf)
-		return NULL;
+	/* Tx slave DMA channel config. */
+	txconf.direction      = DMA_MEM_TO_DEV;
+	txconf.dst_addr       = dws->dma_addr;
+	txconf.dst_maxburst   = dws->fifo_len / 2;
+	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	txconf.dst_addr_width = dw_spi_dma_convert_width(dws->dma_width);
+	txconf.device_fc      = false;
 
-	/* slave config */
-	config.direction      = DMA_MEM_TO_DEV;
-	config.device_fc      = false;
-	config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	config.dst_maxburst   = dws->fifo_len/2;
-	config.dst_addr       = dws->dma_addr;
-
-	ret = dmaengine_slave_config(dws->txchan, &config);
+	ret = dmaengine_slave_config(dws->txchan, &txconf);
 	if (ret) {
-		dev_err(&dws->master->dev, "Failed to set DMA config\n");
-		return NULL;
+		dev_err(&dws->master->dev, "Failed to set Tx DMA config\n");
+		return ERR_PTR(ret);
 	}
 
-	/* descriptor */
+	/* Get Tx block descriptor. */
 	desc = dmaengine_prep_slave_sg(dws->txchan,
 		xfer->tx_sg.sgl, xfer->tx_sg.nents,
 		DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		dev_err(&dws->master->dev, "Failed to prepare DMA-slave\n");
-		return NULL;
+		dev_err(&dws->master->dev, "Failed to prepare Tx DMA block\n");
+		return ERR_PTR(-EIO);
 	}
 
-	/* callback */
-	desc->callback = tx_done;
+	desc->callback = dw_spi_dma_tx_done;
 	desc->callback_param = dws;
 
 	return desc;
 }
 
-static struct dma_async_tx_descriptor *prepare_rx (
-	struct dw_spi       *dws,
-	struct spi_transfer *xfer)
+static int dw_spi_dma_submit_tx(struct dw_spi *dws,
+				struct dma_async_tx_descriptor *desc)
 {
-	struct dma_async_tx_descriptor *desc;
-	struct dma_slave_config config = {0};
 	int ret;
 
-	if (!xfer->rx_buf)
-		return NULL;
-
-	/* slave config */
-	config.direction      = DMA_DEV_TO_MEM;
-	config.device_fc      = false;
-	config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	config.src_maxburst   = dws->fifo_len/2;
-	config.src_addr       = dws->dma_addr;
-
-	ret = dmaengine_slave_config(dws->rxchan, &config);
+	/*
+	 * Submit DMA tranfer, then set flag of the channel being busy and
+	 * launch the transfer.
+	 */
+	ret = dma_submit_error(dmaengine_submit(desc));
 	if (ret) {
-		dev_err(&dws->master->dev, "Failed to set DMA config\n");
-		return NULL;
+		dev_err(&dws->master->dev, "Failed to submit Tx DMA block\n");
+		return ret;
+	}
+	set_bit(TX_BUSY, &dws->dma_chan_busy);
+	dma_async_issue_pending(dws->txchan);
+
+	return 0;
+}
+
+static struct dma_async_tx_descriptor *
+dw_spi_dma_prepare_rx(struct dw_spi *dws, struct spi_transfer *xfer)
+{
+	struct dma_async_tx_descriptor *desc;
+	struct dma_slave_config rxconf = {0};
+	int ret;
+
+	/* Tx slave DMA channel config. */
+	rxconf.direction      = DMA_DEV_TO_MEM;
+	rxconf.device_fc      = false;
+	rxconf.src_addr_width = dw_spi_dma_convert_width(dws->dma_width);
+	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	rxconf.src_maxburst   = dws->fifo_len / 2;
+	rxconf.src_addr       = dws->dma_addr;
+
+	ret = dmaengine_slave_config(dws->rxchan, &rxconf);
+	if (ret) {
+		dev_err(&dws->master->dev, "Failed to set Rx DMA config\n");
+		return ERR_PTR(ret);
 	}
 
-	/* descriptor */
+	/* Get Rx block descriptor. */
 	desc = dmaengine_prep_slave_sg(dws->rxchan,
 		xfer->rx_sg.sgl, xfer->rx_sg.nents,
 		DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		dev_err(&dws->master->dev, "Failed to prepare DMA-slave\n");
-		return NULL;
+		dev_err(&dws->master->dev, "Failed to prepare Rx DMA block\n");
+		return ERR_PTR(-EIO);
 	}
 
-	/* callback */
-	desc->callback = rx_done;
+	desc->callback = dw_spi_dma_rx_done;
 	desc->callback_param = dws;
 
 	return desc;
 }
 
-static int init (struct dw_spi *dws)
+static int dw_spi_dma_submit_rx(struct dw_spi *dws,
+				struct dma_async_tx_descriptor *desc)
 {
-	/* clear */
-	dws->rxchan = 0;
-	dws->txchan = 0;
-	dws->master->dma_rx = 0;
-	dws->master->dma_tx = 0;
-	dws->transfer_handler = NULL;
-	clear_bit(TX_BUSY, &dws->dma_chan_busy);
-	clear_bit(RX_BUSY, &dws->dma_chan_busy);
+	int ret;
 
-	/* init */
-	dws->dma_inited = 1;
+	/*
+	 * Submit DMA tranfer, then set flag of the channel being busy and
+	 * launch the transfer.
+	 */
+	ret = dma_submit_error(dmaengine_submit(desc));
+	if (ret) {
+		dev_err(&dws->master->dev, "Failed to submit Rx DMA block\n");
+		return ret;
+	}
+	set_bit(RX_BUSY, &dws->dma_chan_busy);
+	dma_async_issue_pending(dws->rxchan);
+
+	/* Write dummy data to start read-only mode. */
+	if (!dws->tx)
+		dw_writel(dws, DW_SPI_DR, 0);
+
 	return 0;
 }
 
-static void exit (struct dw_spi *dws)
+static irqreturn_t dw_spi_dma_handler(struct dw_spi *dws)
 {
-	stop(dws);
+	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
+
+	if (!irq_status)
+		return IRQ_NONE;
+
+	dw_readl(dws, DW_SPI_ICR);
+	spi_reset_chip(dws);
+
+	dev_err(&dws->master->dev, "%s: FIFO overrun/underrun (ISR 0x%02x)\n", __func__, irq_status);
+
+	dws->master->cur_msg->status = -EIO;
+	spi_finalize_current_transfer(dws->master);
+
+	return IRQ_HANDLED;
 }
 
-static bool can (
-	struct spi_master *master,
-	struct spi_device *spi,
-	struct spi_transfer *xfer)
+static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
-	struct dw_spi *dws = spi_master_get_devdata(master);
-	return (dws->dma_inited) && (xfer->len > dws->fifo_len);
-}
+	u16 imr = 0, dma_ctrl = 0;
 
-static int setup (struct dw_spi *dws, struct spi_transfer *xfer)
-{
-	u16 dma_ctrl = 0;
-	u32 tmode, cr0;
-
-	/* busy */
-	if(dws->rx)
-		set_bit(RX_BUSY, &dws->dma_chan_busy);
-	if(dws->tx)
-		set_bit(TX_BUSY, &dws->dma_chan_busy);
-
-	/* dma */
-	if(channel_get(dws)){
-		dws->dma_inited = 0;
-		return -EBUSY;
-	}
-
-	/* spi */
-	/* clear */
-	dw_writel(dws, DW_SPI_DMACR, 0);
-
-	/* MODE */
-	if (dws->rx && dws->tx)
-		tmode = SPI_TMOD_TR;
-	else if (dws->rx)
-		tmode = SPI_TMOD_RO;
-	else
-		tmode = SPI_TMOD_TO;
-
-	/* CTRL0 */
-	cr0 = dw_readl(dws, DW_SPI_CTRL0);
-	cr0 &= ~SPI_TMOD_MASK;
-	cr0 |= (tmode << SPI_TMOD_OFFSET);
-	dw_writel(dws, DW_SPI_CTRL0, cr0);
-
-	/* DMATDLR */
-	dw_writel(dws, DW_SPI_DMATDLR, dws->fifo_len/2);
+	dw_writel(dws, DW_SPI_DMATDLR, dws->fifo_len / 2);
 	dw_writel(dws, DW_SPI_DMARDLR, 0);
 
-	/* DMACR */
-	if(dws->tx)
+	if(xfer->tx_buf) {
 		dma_ctrl |= SPI_DMA_TDMAE;
-	if(dws->rx)
+		imr |= SPI_INT_TXOI;
+	}
+	if(xfer->rx_buf) {
 		dma_ctrl |= SPI_DMA_RDMAE;
+		imr |= SPI_INT_RXOI | SPI_INT_RXUI;
+	}
 	dw_writel(dws, DW_SPI_DMACR, dma_ctrl);
+	spi_umask_intr(dws, imr);
+
+	dws->transfer_handler = dw_spi_dma_handler;
 
 	return 0;
 }
 
-static int transfer (struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 {
-	struct dma_async_tx_descriptor *rxdesc;
-	struct dma_async_tx_descriptor *txdesc;
+	struct dma_async_tx_descriptor *txdesc, *rxdesc;
+	int ret;
 
-	/* rx must be started before tx due to spi instinct */
-	rxdesc = prepare_rx(dws, xfer);
-	if (rxdesc) {
-		dmaengine_submit(rxdesc);
-		dma_async_issue_pending(dws->rxchan);    /* start */
+	/*
+	 * Setup channels to work with the passed transfer and get the DMA Tx
+	 * descripor for the transfer SG-list. We also need to submit rx before
+	 * tx due to spi instinct.
+	 */
+	if (xfer->rx_buf) {
+		rxdesc = dw_spi_dma_prepare_rx(dws, xfer);
+		if (IS_ERR(rxdesc))
+			return PTR_ERR(rxdesc);
+
+		ret = dw_spi_dma_submit_rx(dws, rxdesc);
+		if (ret)
+			return ret;
+	} else {
+		clear_bit(RX_BUSY, &dws->dma_chan_busy);
 	}
 
-	txdesc = prepare_tx(dws, xfer);
-	if (txdesc) {
-		dmaengine_submit(txdesc);
-		dma_async_issue_pending(dws->txchan);    /* start */
+	/*
+	 * Don't warry about rxdesc resource deallocation if the next code
+	 * fails, dma_stop will get called by the handle_err callback of the
+	 * generic DW SPI driver.
+	 */
+	if (xfer->tx_buf) {
+		txdesc = dw_spi_dma_prepare_tx(dws, xfer);
+		if (IS_ERR(txdesc))
+			return PTR_ERR(txdesc);
+
+		ret = dw_spi_dma_submit_tx(dws, txdesc);
+		if (ret)
+			return ret;
+	} else {
+		clear_bit(TX_BUSY, &dws->dma_chan_busy);
 	}
 
-	if (!dws->tx && dws->rx)
-		dw_writel(dws, DW_SPI_DR, 0);  /* write dummy data to start read-only mode */
-
-	dw_writel(dws, DW_SPI_SER, BIT(dws->master->cur_msg->spi->chip_select));  /* start spi */
+	/* Enable SPI data transfer by setting the corresponding hardware CS */
+	dw_writel(dws, DW_SPI_SER, BIT(dws->master->cur_msg->spi->chip_select));
 
 	return 0;
 }
 
-static void stop (struct dw_spi *dws)
+static void dw_spi_dma_stop(struct dw_spi *dws)
 {
-	if (!dws->dma_inited)
-		return;
 	if (test_bit(TX_BUSY, &dws->dma_chan_busy)) {
 		dmaengine_terminate_all(dws->txchan);
 		clear_bit(TX_BUSY, &dws->dma_chan_busy);
@@ -261,57 +353,18 @@ static void stop (struct dw_spi *dws)
 		dmaengine_terminate_all(dws->rxchan);
 		clear_bit(RX_BUSY, &dws->dma_chan_busy);
 	}
-	channel_free(dws);
-	dws->dma_inited = 0;
-
-	dev_err(&dws->master->dev, "Disable DW DMA code\n");
 }
 
 static struct dw_spi_dma_ops  dma_ops = {
-	.dma_init     = init,
-	.dma_exit     = exit,
-	.can_dma      = can,
-	.dma_setup    = setup,
-	.dma_transfer = transfer,
-	.dma_stop     = stop,
+	.dma_init     = dw_spi_dma_init,
+	.dma_exit     = dw_spi_dma_exit,
+	.can_dma      = dw_spi_dma_can,
+	.dma_setup    = dw_spi_dma_setup,
+	.dma_transfer = dw_spi_dma_transfer,
+	.dma_stop     = dw_spi_dma_stop,
 };
 
-static void channel_free (struct dw_spi *dws)
-{
-	if(dws->txchan)
-		dma_release_channel(dws->txchan);
-	if(dws->rxchan)
-		dma_release_channel(dws->rxchan);
-	dws->master->dma_tx = 0;
-	dws->master->dma_rx = 0;
-	dws->txchan = 0;
-	dws->rxchan = 0;
-}
-
-static int channel_get (struct dw_spi *dws)
-{
-	struct device *dev = &(dws->master->dev);
-
-	if (dws->tx) {
-		dws->txchan = dma_request_slave_channel(dev, "tx");
-		dws->master->dma_tx = dws->txchan;
-		if(!dws->txchan)
-			goto err;
-	}
-	if (dws->rx) {
-		dws->rxchan = dma_request_slave_channel(dev, "rx");
-		dws->master->dma_rx = dws->rxchan;
-		if(!dws->rxchan)
-			goto err;
-	}
-	return 0;
-
-err:
-	channel_free(dws);
-	return -EBUSY;
-}
-
-void spi_dma_init (struct dw_spi *dws)
+void dw_spi_mmio_dma_init(struct dw_spi *dws)
 {
 	dws->dma_ops = &dma_ops;
 }
