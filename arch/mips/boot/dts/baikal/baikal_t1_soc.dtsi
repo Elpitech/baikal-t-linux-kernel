@@ -109,7 +109,7 @@
 			compatible = "snps,dma-spear1340";
 			reg = <0x1f041000 0x1000>;
 			interrupts = <GIC_SHARED 56 IRQ_TYPE_LEVEL_HIGH>;
-			dma-channels = <2>;
+			dma-channels = <8>;
 			dma-requests = <16>;
 			dma-masters = <2>;
 			#dma-cells = <3>;
