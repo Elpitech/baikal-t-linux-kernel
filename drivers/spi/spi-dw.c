@@ -505,6 +505,8 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 			dev_err(dev, "can not get IRQ\n");
 			goto err_free_master;
 		}
+	} else {
+		dev_warn(dev, "IRQ init failed\n");
 	}
 
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP;
@@ -523,7 +525,6 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	spi_hw_init(dev, dws);
 
 	if (dws->dma_ops && dws->dma_ops->dma_init) {
-		master->max_dma_len = dws->max_dma_len;
 		ret = dws->dma_ops->dma_init(dws);
 		if (ret) {
 			dev_warn(dev, "DMA init failed\n");

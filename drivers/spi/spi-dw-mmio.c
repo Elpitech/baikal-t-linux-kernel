@@ -28,6 +28,12 @@
 
 #define DRIVER_NAME "dw_spi_mmio"
 
+#ifdef CONFIG_SPI_DW_MMIO_DMA
+extern void dw_spi_mmio_dma_init(struct dw_spi *dws);
+#else
+inline void dw_spi_mmio_dma_init(struct dw_spi *dws) {}
+#endif
+
 struct dw_spi_mmio {
 	struct dw_spi  dws;
 #ifdef CONFIG_MIPS_BAIKAL
@@ -93,6 +99,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "SPI region map failed\n");
 		return PTR_ERR(dws->regs);
 	}
+	dws->paddr = mem->start;
 
 	/* IRQ might be unavailable */
 	dws->irq = platform_get_irq(pdev, 0);
@@ -140,6 +147,8 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	ret = dw_spi_mmio_boot_enable(dwsmmio, pdev);
 	if (ret)
 		goto out;
+
+	dw_spi_mmio_dma_init(dws);
 
 	pdev->dev.dma_mask = NULL;
 	ret = dw_spi_add_host(&pdev->dev, dws);
