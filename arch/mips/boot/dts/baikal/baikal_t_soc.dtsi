@@ -118,7 +118,7 @@
 			chan_priority = <1>;
 			block_size = <0xfff>;
 			data-width = <1 1>;
-			multi-block = <0 0>;
+			multi-block = <0 0 0 0 0 0 0 0>;
 			clocks = <&dma_clk 0>;
 			clock-names = "hclk";
 		};
