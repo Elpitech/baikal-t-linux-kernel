@@ -11,6 +11,8 @@
 #include <linux/platform_data/dma-dw.h>
 #include <linux/delay.h>
 
+#define TX_BURST_LEVEL 4
+#define RX_BURST_LEVEL 4
 #define MAX_DMA_LEN 4095
 
 #define RX_BUSY     0
@@ -154,7 +156,7 @@ dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 	/* Tx slave DMA channel config. */
 	txconf.direction      = DMA_MEM_TO_DEV;
 	txconf.dst_addr       = dws->dma_addr;
-	txconf.dst_maxburst   = dws->fifo_len / 2;
+	txconf.dst_maxburst   = TX_BURST_LEVEL;
 	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	txconf.dst_addr_width = dw_spi_dma_convert_width(dws->dma_width);
 	txconf.device_fc      = false;
@@ -212,7 +214,7 @@ dw_spi_dma_prepare_rx(struct dw_spi *dws, struct spi_transfer *xfer)
 	rxconf.device_fc      = false;
 	rxconf.src_addr_width = dw_spi_dma_convert_width(dws->dma_width);
 	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	rxconf.src_maxburst   = dws->fifo_len / 2;
+	rxconf.src_maxburst   = RX_BURST_LEVEL;
 	rxconf.src_addr       = dws->dma_addr;
 
 	ret = dmaengine_slave_config(dws->rxchan, &rxconf);
@@ -282,8 +284,8 @@ static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	u16 imr = 0, dma_ctrl = 0;
 
-	dw_writel(dws, DW_SPI_DMATDLR, dws->fifo_len / 2);
-	dw_writel(dws, DW_SPI_DMARDLR, 0);
+	dw_writel(dws, DW_SPI_DMATDLR, dws->fifo_len - TX_BURST_LEVEL);
+	dw_writel(dws, DW_SPI_DMARDLR, RX_BURST_LEVEL - 1);
 
 	if(xfer->tx_buf) {
 		dma_ctrl |= SPI_DMA_TDMAE;
