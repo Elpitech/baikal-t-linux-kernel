@@ -126,6 +126,8 @@ static void dw_spi_dma_tx_done(void *arg)
 	clear_bit(TX_BUSY, &dws->dma_chan_busy);
 	if (test_bit(RX_BUSY, &dws->dma_chan_busy))
 		return;
+
+	dw_writel(dws, DW_SPI_DMACR, 0);
 	spi_finalize_current_transfer(dws->master);
 }
 
@@ -138,6 +140,7 @@ static void dw_spi_dma_rx_done(void *arg)
 	if (test_bit(TX_BUSY, &dws->dma_chan_busy))
 		return;
 
+	dw_writel(dws, DW_SPI_DMACR, 0);
 	spi_finalize_current_transfer(dws->master);
 }
 
@@ -353,6 +356,8 @@ static void dw_spi_dma_stop(struct dw_spi *dws)
 		dmaengine_terminate_all(dws->rxchan);
 		clear_bit(RX_BUSY, &dws->dma_chan_busy);
 	}
+
+	dw_writel(dws, DW_SPI_DMACR, 0);
 }
 
 static struct dw_spi_dma_ops  dma_ops = {
