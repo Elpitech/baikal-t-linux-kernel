@@ -32,14 +32,6 @@
 
 #define OK			0
 #define ERROR			-1
-#define ERROR_MISMATCH1		0x0010
-#define ERROR_MISMATCH2		0x0020
-#define ERROR_MISMATCH3		0x0040
-#define ERROR_MISMATCH4		0x0080
-#define ERROR_MISMATCH5		0x0100
-#define ERROR_MISMATCH6		0x0200
-#define ERROR_MISMATCH7		0x0400
-#define ERROR_MISMATCH8		0x0800
 
 static uint32_t dw_pcie_phy_read(uint32_t phy_addr)
 {
@@ -131,7 +123,7 @@ int dw_pcie_init(void)
 {
 	volatile uint32_t reg;
 	uint32_t rstc_mask = 0;
-	int i, st = 0;
+	int i;
 
 	/* PMU PCIe init. */
 
@@ -205,9 +197,6 @@ int dw_pcie_init(void)
 	reg |= PMU_PCIE_GENC_MGMT_ENABLE;
 	WRITE_PMU_REG(BK_PMU_PCIE_GENC, reg);
 
-	/* 4.2 All lanes can read/write PHY registers using the management interface. */
-	WRITE_PCIE_REG(PCIE_BK_MGMT_SEL_LANE, 0xF);
-
 	/*
 	 * 7. Wait for stable clocks: SDS_PCS_CLOCK_READY bit in
 	 * DWC_GLBL_PLL_MONITOR register of PCIe PHY.
@@ -237,60 +226,6 @@ int dw_pcie_init(void)
 		PMU_PCIE_RSTC_STICKY_RST | PMU_PCIE_RSTC_NONSTICKY_RST | PMU_PCIE_RSTC_HOT_RESET);
 	WRITE_PMU_REG(BK_PMU_PCIE_RSTC, reg);
 
-	pr_debug("%s: DEV_ID_VEND_ID=0x%x CLASS_CODE_REV_ID=0x%x\n", __func__,
-		READ_PCIE_REG(PCIE_TYPE1_DEV_ID_VEND_ID_REG), READ_PCIE_REG(PCIE_TYPE1_CLASS_CODE_REV_ID_REG));
-
-	/* 5. Set the fast mode. */
-	/*reg = READ_PCIE_REG(PCIE_PORT_LINK_CTRL_OFF);
-	reg |= FAST_LINK_MODE;
-	WRITE_PCIE_REG(PCIE_PORT_LINK_CTRL_OFF, reg);
-
-	reg = dw_pcie_phy_read(PCIE_PHY_DWC_GLBL_PLL_CFG_0);
-	reg &= ~PCS_SDS_PLL_FTHRESH_MASK;
-	dw_pcie_phy_write(PCIE_PHY_DWC_GLBL_PLL_CFG_0, reg);
-
-	reg = dw_pcie_phy_read(PCIE_PHY_DWC_GLBL_TERM_CFG);
-	reg |= FAST_TERM_CAL;
-	dw_pcie_phy_write(PCIE_PHY_DWC_GLBL_TERM_CFG, reg);
-
-	reg = dw_pcie_phy_read(PCIE_PHY_DWC_RX_LOOP_CTRL);
-	reg |= (FAST_OFST_CNCL | FAST_DLL_LOCK);
-	dw_pcie_phy_write(PCIE_PHY_DWC_RX_LOOP_CTRL, reg);
-
-	reg = dw_pcie_phy_read(PCIE_PHY_DWC_TX_CFG_0);
-	reg |= (FAST_TRISTATE_MODE | FAST_RDET_MODE | FAST_CM_MODE);
-	dw_pcie_phy_write(PCIE_PHY_DWC_TX_CFG_0, reg);*/
-
-	/* 6. Set number of lanes. */
-	reg = READ_PCIE_REG(PCIE_GEN2_CTRL_OFF);
-	reg &= ~NUM_OF_LANES_MASK;
-	reg |= (0x4 << NUM_OF_LANES_SHIFT);
-	//reg |= DIRECT_SPEED_CHANGE; // also force Directed Speed Change
-	WRITE_PCIE_REG(PCIE_GEN2_CTRL_OFF, reg);
-
-	reg = READ_PCIE_REG(PCIE_PORT_LINK_CTRL_OFF);
-	reg &= ~LINK_CAPABLE_MASK;
-	reg |= (0x7 << LINK_CAPABLE_SHIFT);
-	WRITE_PCIE_REG(PCIE_PORT_LINK_CTRL_OFF, reg);
-
-	/* 7. Enable GEN3 */
-	/*reg = READ_PCIE_REG(PCIE_GEN3_EQ_CONTROL_OFF);
-	reg &= ~(GEN3_EQ_FB_MODE_MASK | GEN3_EQ_PSET_REQ_VEC_MASK);
-	reg |= ((GEN3_EQ_EVAL_2MS_DISABLE) | (0x1 << GEN3_EQ_FB_MODE_SHIFT) |
-		(0x1 << GEN3_EQ_PSET_REQ_VEC_SHIFT));
-	WRITE_PCIE_REG(PCIE_GEN3_EQ_CONTROL_OFF, reg);
-
-	WRITE_PCIE_REG(PCIE_LANE_EQUALIZATION_CONTROL01_REG, 0);
-	WRITE_PCIE_REG(PCIE_LANE_EQUALIZATION_CONTROL23_REG, 0);
-
-	dw_pcie_phy_write(PCIE_PHY_DWC_RX_PRECORR_CTRL, 0);
-	dw_pcie_phy_write(PCIE_PHY_DWC_RX_CTLE_CTRL, 0x200);
-	dw_pcie_phy_write(PCIE_PHY_DWC_RX_VMA_CTRL, 0xc000);
-	dw_pcie_phy_write(PCIE_PHY_DWC_PCS_LANE_VMA_FINE_CTRL_0, 0);
-	dw_pcie_phy_write(PCIE_PHY_DWC_PCS_LANE_VMA_FINE_CTRL_1, 0);
-	dw_pcie_phy_write(PCIE_PHY_DWC_PCS_LANE_VMA_FINE_CTRL_2, 0);
-	dw_pcie_phy_write(PCIE_PHY_DWC_EQ_WAIT_TIME, 0xa);*/
-
 	/* 7.1 Disable entire DFE */
 	reg = dw_pcie_phy_read(PCIE_PHY_DWC_RX_LOOP_CTRL);
 	reg |= 0x2;
@@ -303,55 +238,6 @@ int dw_pcie_init(void)
 	//reg = dw_pcie_phy_read(PCIE_PHY_DWC_RX_AEQ_VALBBD_1);
 	reg = 0;
 	dw_pcie_phy_write(PCIE_PHY_DWC_RX_AEQ_VALBBD_1, reg);
-
-	/* Configure bus. */
-	reg = READ_PCIE_REG(PCIE_SEC_LAT_TIMER_SUB_BUS_SEC_BUS_PRI_BUS_REG);
-	reg &= 0xff000000;
-	reg |= (0x00ff0000 | (PCIE_ROOT_BUS_NUM << 8)); /* IDT PCI Bridge don't like the primary bus equals 0. */
-	WRITE_PCIE_REG(PCIE_SEC_LAT_TIMER_SUB_BUS_SEC_BUS_PRI_BUS_REG, reg);
-
-	WRITE_PCIE_REG(PCI_BASE_ADDRESS_0, 0);
-	WRITE_PCIE_REG(PCI_BASE_ADDRESS_1, 0);
-	WRITE_PCIE_REG(PCIE_SEC_STAT_IO_LIMIT_IO_BASE_REG, 0);
-	WRITE_PCIE_REG(PCIE_MEM_LIMIT_MEM_BASE_REG, 0);
-	WRITE_PCIE_REG(PCIE_PREF_MEM_LIMIT_PREF_MEM_BASE_REG, 0);
-	WRITE_PCIE_REG(PCIE_PREF_BASE_UPPER_REG, 0);
-	WRITE_PCIE_REG(PCIE_PREF_LIMIT_UPPER_REG, 0);
-
-	/* 8. Set master for PCIe EP. */
-	reg = READ_PCIE_REG(PCIE_TYPE1_STATUS_COMMAND_REG);
-	reg |= (TYPE1_STATUS_COMMAND_REG_BME | TYPE1_STATUS_COMMAND_REG_MSE | TYPE1_STATUS_COMMAND_REG_IOSE);
-	reg |= (PCI_COMMAND_PARITY | PCI_COMMAND_SERR); // Add check error.
-	WRITE_PCIE_REG(PCIE_TYPE1_STATUS_COMMAND_REG, reg);
-
-	/* AER */
-	reg =  READ_PCIE_REG(PCIE_DEVICE_CONTROL_DEVICE_STATUS);
-	reg |= PCI_EXP_DEVCTL_CERE; /* Correctable Error Reporting */
-	reg |= PCI_EXP_DEVCTL_NFERE; /* Non-Fatal Error Reporting */
-	reg |= PCI_EXP_DEVCTL_FERE;	/* Fatal Error Reporting */
-	reg |= PCI_EXP_DEVCTL_URRE;	/* Unsupported Request */
-	WRITE_PCIE_REG(PCIE_DEVICE_CONTROL_DEVICE_STATUS, reg);
-
-	/* Unmask Uncorrectable Errors. */
-	reg = READ_PCIE_REG(PCIE_UNCORR_ERR_STATUS_OFF);
-	WRITE_PCIE_REG(PCIE_UNCORR_ERR_STATUS_OFF, reg);
-	WRITE_PCIE_REG(PCIE_UNCORR_ERR_MASK_OFF, 0);
-
-	/* Unmask Correctable Errors. */
-	reg = READ_PCIE_REG(PCIE_CORR_ERR_STATUS_OFF);
-	WRITE_PCIE_REG(PCIE_CORR_ERR_STATUS_OFF, reg);
-	WRITE_PCIE_REG(PCIE_CORR_ERR_MASK_OFF, 0);
-
-#ifdef DW_CHECK_ECRC
-	reg = READ_PCIE_REG(PCIE_ADV_ERR_CAP_CTRL_OFF);
-	/* ECRC Generation Enable */
-	if (reg & PCI_ERR_CAP_ECRC_GENC)
-		reg |= PCI_ERR_CAP_ECRC_GENE;
-	/* ECRC Check Enable */
-	if (reg & PCI_ERR_CAP_ECRC_CHKC)
-		reg |= PCI_ERR_CAP_ECRC_CHKE;
-	WRITE_PCIE_REG(PCIE_ADV_ERR_CAP_CTRL_OFF, reg);
-#endif /* DW_CHECK_ECRC */
 
 	/* 9. Set GENx speed in accordance with the Baikal-T(1) SoC rev. */
 	reg = READ_PCIE_REG(PCIE_LINK_CONTROL2_LINK_STATUS2_REG);
@@ -368,36 +254,5 @@ int dw_pcie_init(void)
 	reg |= PMU_PCIE_GENC_LTSSM_ENABLE;
 	WRITE_PMU_REG(BK_PMU_PCIE_GENC, reg);
 
-	/* 11-12 Analyze BK_PMU_PCIE_PMSC */
-	for (i = 0; i < PCIE_PHY_RETRIES; i++) {
-		reg = READ_PMU_REG(BK_PMU_PCIE_PMSC);
-		st = 0;
-		if ((reg & PMU_PCIE_PMSC_SMLH_LINKUP) == 0) {
-			st |= ERROR_MISMATCH3;
-		}
-
-		if ((reg & PMU_PCIE_PMSC_RDLH_LINKUP) == 0) {
-			st |= ERROR_MISMATCH4;
-		}
-
-		if ((reg & PMU_PCIE_PMSC_LTSSM_STATE_MASK) != LTSSM_L0) {
-			st |= ERROR_MISMATCH5;
-		}
-
-		if (!st) {
-			break;
-		}
-	}
-
-	if (!st) {
-		/* Check the speed is set in PCIE_LINK_CONTROL_LINK_STATUS_REG. */
-		reg = READ_PCIE_REG(PCIE_LINK_CONTROL_LINK_STATUS_REG);
-		pr_info("%s: PCIe link speed GEN%d x%d\n", __func__,
-			((reg & PCIE_CAP_LINK_SPEED_MASK) >> PCIE_CAP_LINK_SPEED_SHIFT),
-			((reg & PCIE_STA_LINK_WIDTH_MASK) >> PCIE_STA_LINK_WIDTH_SHIFT));
-	} else {
-		pr_err("%s: PCIe error code = 0x%x\n", __func__, st);
-	}
-
-	return st;
+	return OK;
 }
