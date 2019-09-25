@@ -422,6 +422,9 @@ config TP_GPIODIR_CTL
 	  Say Y to enable support for T-Platforms external
 	  GPIO direction control.
 
+config BE_BC
+	tristate "boot controller"
+
 menuconfig BAIKAL_ERRATA
 	bool "Baikal SoC Errata Fix"
 	help
