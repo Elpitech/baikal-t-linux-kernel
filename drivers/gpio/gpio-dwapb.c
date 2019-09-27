@@ -421,13 +421,11 @@ static int tp_pinctrl_direction_input(struct gpio_chip *gc, unsigned int gpio)
 	int rc = 0;
 
 	direction_state = port->pinctrl_in_states[gpio];
-	if (direction_state) {
+	rc = port->dir_in(gc, gpio);
+	if (!rc && direction_state)
 		rc = pinctrl_select_state(port->pinctrl, direction_state);
-		if (rc)
-			return rc;
-	}
 
-	return port->dir_in(gc, gpio);
+	return rc;
 }
 
 static int tp_pinctrl_setup_map(struct dwapb_gpio *gpio,
