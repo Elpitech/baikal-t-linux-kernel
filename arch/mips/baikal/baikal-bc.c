@@ -34,7 +34,7 @@
 
 
 #define DRIVER_NAME 		"be-bc"
-#define VERSION			"1.02"
+#define VERSION			"1.03"
 
 #define BE_BC_CSR		0x00
 #define BE_BC_MAR		0x04
@@ -69,6 +69,7 @@ static int be_bc_drv_probe(struct platform_device *pdev)
 	struct be_bc *bc;
 	struct resource *res;
 	u32 vid, drid;
+	int rc;
 
 	bc = devm_kzalloc(&pdev->dev, sizeof(*bc), GFP_KERNEL);
 	if (!bc)
@@ -89,13 +90,17 @@ static int be_bc_drv_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "VID: 0x%08x, DRID: 0x%08x\n", vid, drid);
 	dev_info(&pdev->dev, "Version " VERSION "\n");
 
-	return 0;
+	rc = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+
+	return rc;
 }
 
 static int be_bc_drv_remove(struct platform_device *pdev)
 {
 	struct be_bc *bc;
 
+	dev_info(&pdev->dev, "removing %s child devices...\n", DRIVER_NAME);
+	of_platform_depopulate(&pdev->dev);
 	bc = platform_get_drvdata(pdev);
 	bc_disable_spi(bc);
 
