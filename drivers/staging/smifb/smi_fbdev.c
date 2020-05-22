@@ -206,14 +206,6 @@ static int smifb_create(struct drm_fb_helper *helper,
 	if (ret)
 		return ret;
 
-	ret = smi_bo_pin(bo, TTM_PL_FLAG_VRAM, NULL);
-	if (ret) {
-		DRM_ERROR("failed to pin fbcon\n");
-		smi_bo_unreserve(bo);
-		smi_gem_free_object(gobj);
-		return ret;
-	}
-
 	ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages,
 			  &bo->kmap);
 	if (ret) {
@@ -304,14 +296,6 @@ static int smifb_create(struct drm_fb_helper *helper,
 #endif
 
 	smi_fb_zfill(dev, gfbdev);
-
-	/*
-	 * Now unmap and unpin the buffer - it will be mapped when
-	 * fbcon is activated.
-	 */
-	ttm_bo_kunmap(&bo->kmap);
-	smi_bo_unpin(bo);
-	info->screen_base = NULL;
 
 	DRM_INFO("fb mappable at 0x%lX\n", info->fix.smem_start);
 	DRM_INFO("vram aper at 0x%lX\n", (unsigned long)info->fix.smem_start);
