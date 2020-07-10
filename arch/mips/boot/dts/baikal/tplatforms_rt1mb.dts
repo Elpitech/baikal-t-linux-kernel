@@ -1,21 +1,12 @@
 /*
- * Baikal-T BFK2 board device tree.
+ * T-Platforms RT1MB (Baikal-T1) board device tree.
  *
- * Copyright (C) 2014-2016  Baikal Electronics JSC
+ * Copyright (C) 2018-2020 T-Platforms JSC
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include <dt-bindings/interrupt-controller/mips-gic.h>
@@ -47,23 +38,33 @@
 };
 
 &usb {
-	status = "ok";
+	status = "okay";
 };
 
 &sata {
-	status = "ok";
+	status = "okay";
 };
 
 &pcie {
-	status = "ok";
+	status = "okay";
 };
 
 &gmac0 {
-	status = "ok";
+	status = "okay";
+	phy-mode = "rgmii-rxid";
+};
+
+&gmac1 {
+	status = "okay";
+	phy-mode = "rgmii-rxid";
+};
+
+&xgmac {
+	status = "okay";
 };
 
 &gpio {
-	status = "ok";
+	status = "okay";
 	usb_rst_line {
 		gpio-hog;
 		gpios = <18 0>;
@@ -73,15 +74,15 @@
 };
 
 &gpio3 {
-	status = "ok";
+	status = "okay";
 };
 
 &i2c0 {
-	status = "ok";
+	status = "okay";
 };
 
 &i2c1 {
-	status = "ok";
+	status = "okay";
 	i2c-switch@70 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
@@ -140,27 +141,12 @@
 	};
 };
 
-
-&spi0 {
-	num-cs = <2>;
-	cs-gpios = <&porta 14 GPIO_ACTIVE_LOW>, <0>;
-	status = "ok";
-
-	mmc-slot@0 {
-		compatible = "fsl,mpc8323rdb-mmc-slot", "mmc-spi-slot";
-		reg = <0>;
-//		gpios = <&porta 15 GPIO_ACTIVE_LOW>, <0>;
-		voltage-ranges = <2000 3600>;
-		spi-max-frequency = <15000000>;
-	};
-};
-
 &spi1 {
 	num-cs = <1>;
 	cs-gpios = <0>;
-	status = "ok";
+	status = "okay";
 };
 
 &pvt {
-	status = "ok";
+	status = "okay";
 };
