@@ -281,6 +281,21 @@ config MACH_BAIKAL_RT1MB
 	# PCIe
 	select PCI_DRIVERS_GENERIC
 
+config MACH_BAIKAL_AZURE
+	bool "Baikal-T Azure switch"
+
+	select MIPS_BAIKAL_T1
+	select BAIKAL_T_COMMON
+
+	# Errata set
+	select PAGE_SIZE_16KB
+
+	# DTB select
+	select DTB_TP_AZURE
+
+	# PCIe
+	select PCI_DRIVERS_GENERIC
+
 config MACH_BAIKAL_SBC101
 	bool "T-Platforms SBC101 board"
 
@@ -369,6 +384,12 @@ config DTB_TP_RT1MB
 	  Device tree for T-Platforms RT1MB board
 	  based on Baikal-T1 SOC.
 
+config DTB_TP_AZURE
+	bool "T-Platforms Azure switch"
+	help
+	  Device tree for T-Platforms Azure switch
+	  based on Baikal-T1 SOC.
+
 config DTB_TP_BN1BT1
 	bool "T-Platforms BN1BT1 board"
 	help
@@ -386,12 +407,10 @@ endchoice
 config ARCH_NR_GPIO
 	int "Baikal GPIOs plus architecture specific ones"
 	range 32 512
-	default 40 if MACH_BAIKAL_BFK
-	default 40 if MACH_BAIKAL_BFK2
 	default 64 if MACH_BAIKAL_MITX || MACH_BAIKAL_MRBT1 ||MACH_BAIKAL_BN1BT1
 	default 48 if MACH_BAIKAL_MODULE
 	default 48 if MACH_BAIKAL_MSBT2
-	default 32
+	default 40
 	help
 	  Maximum number of GPIOs in the system.
 
