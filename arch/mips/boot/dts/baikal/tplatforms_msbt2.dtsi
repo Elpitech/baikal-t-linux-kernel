@@ -13,7 +13,6 @@
 #include <dt-bindings/gpio/gpio.h>
 
 #include "baikal_t1_soc.dtsi"
-#include "baikal_mdio.dtsi"
 
 / {
 	model = "Baikal-T1 MSBT2 Mezzanine Card";
