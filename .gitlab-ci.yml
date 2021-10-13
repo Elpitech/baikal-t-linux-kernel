@@ -1,0 +1,37 @@
+image: "xxor/bookworm-builder:1.0"
+
+stages:
+  - build
+
+variables:
+  GIT_DEPTH: 200
+
+.build_kernel_template: &build_kernel_dfn
+  stage: build
+  script:
+    - rm -f ../linux-*
+    - ARCH=mips make ${DEFCONFIG}
+    - ARCH=mips CROSS_COMPILE=/usr/bin/mipsel-linux-gnu- make ${DTBTARGET}
+    - ARCH=mips CROSS_COMPILE=/usr/bin/mipsel-linux-gnu- make bindeb-pkg -j $(nproc)
+    - tar cf linux-${BOARD}.tar --exclude='*-dbg_*' ../linux-*mipsel.deb
+    - rm -f ../linux-*
+  artifacts:
+    name: ${BOARD}
+    paths:
+      - ./linux-${BOARD}.tar
+    expire_in: 1 month
+
+mitx-baikal-t:
+  variables:
+    DEFCONFIG: tplatforms_mitx_defconfig
+    DTBTARGET: baikal/tplatforms_mitx.dtb 
+    BOARD: "mitx"
+  <<: *build_kernel_dfn
+
+msbt2-baikal-t:
+  variables:
+    DEFCONFIG: tplatforms_msbt2_defconfig
+    DTBTARGET: baikal/tplatforms_msbt2.dtb baikal/tplatforms_xa1-msbt2.dtb 
+    BOARD: "msbt2"
+  <<: *build_kernel_dfn
+
