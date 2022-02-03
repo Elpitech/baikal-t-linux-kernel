@@ -1,41 +1,29 @@
-# This CI script uses a pre-build `kernel-builder` container on coldroom.tpl
-# This container is based on debian:buster and have all the necessary packages
-# installed, as well as applied patch for kernel-package to install device
-# blob tree file in /boot instead of standard path defined by kernel.
-image: "kernel-builder"
+image: "xxor/bookworm-builder:1.0"
+
+stages:
+  - build
 
 variables:
-  GIT_SSL_NO_VERIFY: "1"                     # Allow self-signed certificates (REQUIRED for gitlab.tpl)
-  ARCH:              "mips"                  # Build kernel for the specified arch
-  EXTARCH:           "mipsel"                # Extended arch definition
-  CC:                "mipsel-linux-gnu-gcc"  # CC variable
-  DEB_HOST_ARCH:     "mipsel"
-  CROSS_COMPILE:     "mipsel-linux-gnu-"     # Toolchain prefix
-  SUFFIX:            "-extended"             # LOCALVERSION for the kernel
-  DEFAULTCONF:       "tplatforms_mitx_ext_defconfig" # Use the specified defconfig file
-  NJOBS:             "20"                    # Number of parralel build jobs
+  GIT_DEPTH: 200
 
-# Declaring REVISIONSTRING in variables section above is difficult due to 
-# GitLab's way of parsing values: bash expansions won't work as expected.
-before_script:
-  - export REVISIONSTRING="$(date +%Y%m%d).$(git rev-parse --short HEAD)"
-
-# This target builds debian packages for kernel image, source and headers
-# using the defconfig passed in `DEFAULTCONF` variable.
-# For minimal set of modules use `baikal_mitx_defconfig`
-# For extended set of modules use `baikal_mitx_ext_defconfig`
-
-build:
+.build_kernel_template: &build_kernel_dfn
+  stage: build
   script:
-    # clean parent directory (in case previous job failed)
-    - rm -f ../*.deb
-    - ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE fakeroot make-kpkg --arch=$EXTARCH --cross-compile=$CROSS_COMPILE clean
-    - ARCH=$ARCH make defconfig KBUILD_DEFCONFIG=$DEFAULTCONF
-    - ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE LOCALVERSION=$SUFFIX fakeroot make-kpkg -j$NJOBS --arch=$EXTARCH --cross-compile=$CROSS_COMPILE --revision=$REVISIONSTRING kernel_image kernel_headers kernel_source
-    # Gitlab can get artifacts only from inside the repo tree, but kernel
-    # package puts them to parent directory. So we explicitly move them.
-    - cp ../*deb ./
+    - rm -f ../linux-*
+    - ARCH=mips make ${DEFCONFIG}
+    - ARCH=mips CROSS_COMPILE=/usr/bin/mipsel-linux-gnu- make ${DTBTARGET}
+    - ARCH=mips CROSS_COMPILE=/usr/bin/mipsel-linux-gnu- make bindeb-pkg -j $(nproc)
+    - tar cf linux-${BOARD}.tar --exclude='*-dbg_*' ../linux-*mipsel.deb
+    - rm -f ../linux-*
   artifacts:
+    name: ${BOARD}
     paths:
-    - ./*.deb
+      - ./linux-${BOARD}.tar
     expire_in: 1 month
+
+mitx-baikal-t:
+  variables:
+    DEFCONFIG: tplatforms_mitx_defconfig
+    DTBTARGET: baikal/tplatforms_mitx.dtb 
+    BOARD: "mitx"
+  <<: *build_kernel_dfn
