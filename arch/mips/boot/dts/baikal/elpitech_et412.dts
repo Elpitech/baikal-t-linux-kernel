@@ -1,0 +1,145 @@
+/*
+ * Elpitech et412 board device tree.
+ */
+
+#include <dt-bindings/interrupt-controller/mips-gic.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/dts-v1/;
+
+#include "baikal_t1_soc.dtsi"
+
+/ {
+	model = "Elpitech et412 Board";
+	compatible = "baikal,mips", "baikal,baikal-t1-soc";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&gic>;
+
+	chosen {
+		bootargs = "root=/dev/ram rw console=ttyS0,115200n8 earlyprintk=uart8250,mmio32,0x1F04A000,115200 nohtw";
+		linux,initrd-start = <0 0x01000000>;
+		linux,initrd-end   = <0 0x02000000>;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x00000000 0 0x08000000>,
+		      <0 0x20000000 0 0x70000000>;
+	};
+
+};
+
+&usb {
+	status = "okay";
+};
+
+&gmac0 {
+	status = "okay";
+	snps,reset-gpio = <&porta 15 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <10>, <10000>, <50000>;
+	phy-mode = "rgmii-rxid";
+};
+
+&gpio {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	eeprom@53 {
+		compatible = "atmel,24c32";
+		pagesize = <32>;
+		reg = <0x53>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		pagesize = <16>;
+		reg = <0x50>;
+	};
+
+	rtc@51 {
+		compatible = "nxp,pcf2127", "pcf2127-rtc";
+		reg = <0x51>;
+	};
+
+	bmc@8 {
+		compatible = "tp,mitx2-bmc", "t-platforms,mitx2-bmc";
+		reg = <0x08>;
+	};
+};
+
+&spi0 {
+	num-cs = <1>;
+	cs-gpios = <&porta 8 GPIO_ACTIVE_LOW>;
+	status = "okay";
+	admatec_c-berry28@0 {
+		compatible = "sitronix,st7789v";
+		reg = <0x0>;
+		spi-max-frequency = <10000000>;
+		rotate = <90>;
+		fps = <25>;
+		gr;
+		buswidth = <0x9>;
+		debug = <0>;
+	};
+};
+
+&spi2 {
+	status = "okay";
+	num-cs = <1>;
+
+	boot_flash: n25q128a11@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <2000000>;
+		m25p,fast-read;
+
+		partition@0 {
+			label = "bootloader";
+			reg = <0x0 0xE0000>;
+			read-only;
+		};
+
+		partition@1 {
+			label = "environment";
+			reg = <0xE0000 0x10000>;
+		};
+
+		partition@2 {
+			label = "information";
+			reg = <0xF0000 0x10000>;
+			read-only;
+		};
+
+		partition@3 {
+			label = "multiimage";
+			reg = <0x100000 0xF00000>;
+			read-only;
+		};
+
+		partition@4 {
+			label = "firmware";
+			reg = <0x0 0x1000000>;
+		};
+	};
+};
+
+&pvt {
+	status = "okay";
+};
