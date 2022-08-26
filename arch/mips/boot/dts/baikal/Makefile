@@ -6,7 +6,7 @@ dtb-$(CONFIG_DTB_BAIKAL_FPGA)	+= baikal_fpga.dtb
 dtb-$(CONFIG_DTB_BAIKAL_QEMU)	+= baikal_qemu.dtb
 dtb-$(CONFIG_DTB_BAIKAL_MODULE)	+= baikal_module.dtb
 dtb-$(CONFIG_DTB_TP_MITX)	+= tplatforms_mitx.dtb
-dtb-$(CONFIG_DTB_TP_MSBT2)	+= tplatforms_msbt2.dtb
+dtb-$(CONFIG_DTB_TP_MSBT2)	+= tplatforms_msbt2.dtb elpitech_et402.dtb
 dtb-$(CONFIG_DTB_TP_MRBT1)	+= tplatforms_mrbt1.dtb
 dtb-$(CONFIG_DTB_TP_RT1MB)	+= tplatforms_rt1mb.dtb
 dtb-$(CONFIG_DTB_TP_AZURE)	+= tplatforms_azure.dtb
@@ -26,7 +26,8 @@ dtb-$(CONFIG_DT_NONE)		+= \
 					tplatforms_rt1mb.dtb \
 					tplatforms_azure.dtb \
 					tplatforms_bn1bt1.dtb \
-					tplatforms_sbc101.dtb
+					tplatforms_sbc101.dtb \
+					elpitech_et402.dtb
 
 obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
 
