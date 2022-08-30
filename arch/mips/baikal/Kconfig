@@ -110,6 +110,16 @@ config BAIKAL_T_COMMON
 	help
 	  Common features of Baikal-T based boards
 
+config SYS_WANTS_CPUFREQ
+	bool "Enable Baikal-T cpufreq"
+	default n
+	select MIPS_EXTERNAL_TIMER
+	select CPU_FREQ
+	select BAIKAL_T1_CPUFREQ
+	help
+	  Enable Baikal cpufreq support.
+	  Note: this makes vdso gettimeofday unavailable.
+
 choice
 	prompt "Baikal-T Support Boards"
 	default MACH_BAIKAL_BFK
