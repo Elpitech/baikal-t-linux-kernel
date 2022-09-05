@@ -297,6 +297,12 @@
 
 		ranges = <0x1F000000 0 0x1F000000 0x1000000>;
 
+		bc: bc@1F040000 {
+			compatible = "be,bc";
+			reg = <0x1F040000 0x100>;
+			status = "disabled";
+		};
+
 		gpio: gpio@1F044000 {
 			compatible = "snps,dw-apb-gpio";
 			reg = <0x1F044000 0x1000>;
@@ -435,24 +441,15 @@
 			status = "disabled";
 		};
 
-		bc: bc@1F040000 {
+		spi2: spi2@1F040100 {
 			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "be,bc";
-			reg = <0x1F040000 0x100>;
-			ranges;
+			#size-cells = <0>;
+			compatible = "snps,dw-spi-boot";
+			reg = <0x1F040100 0xF00>;
+			clocks = <&boot_clk 0>;
+			clock-names = "bootclk";
 			status = "disabled";
-
-			spi2: spi2@1F040100 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "snps,dw-apb-ssi";
-				reg = <0x1F040100 0xF00>;
-				clocks = <&boot_clk 0>;
-				clock-names = "bootclk";
-				/* no interrupts */
-			};
-
+			/* no interrupts */
 		};
 
 		apb_ehb@1F059000 {
