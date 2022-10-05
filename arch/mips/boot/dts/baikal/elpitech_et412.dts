@@ -27,7 +27,6 @@
 		reg = <0 0x00000000 0 0x08000000>,
 		      <0 0x20000000 0 0x70000000>;
 	};
-
 };
 
 &usb {
@@ -40,6 +39,8 @@
 	snps,reset-active-low;
 	snps,reset-delays-us = <10>, <10000>, <50000>;
 	phy-mode = "rgmii-rxid";
+	mac-address = [ 00 00 00 00 00 00 ];
+	local-mac-address = [ 00 00 00 00 00 00 ];
 };
 
 &gpio {
@@ -53,6 +54,37 @@
 &i2c0 {
 	status = "okay";
 	clock-frequency = <100000>;
+
+	i2c-mux@70 {
+		compatible = "nxp,pca9546";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x70>;
+
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+
+		i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+		};
+
+		i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+		};
+	};
 };
 
 &i2c1 {
@@ -60,25 +92,14 @@
 	clock-frequency = <100000>;
 
 	eeprom@53 {
-		compatible = "atmel,24c32";
-		pagesize = <32>;
-		reg = <0x53>;
-	};
-
-	eeprom@50 {
 		compatible = "atmel,24c02";
 		pagesize = <16>;
-		reg = <0x50>;
+		reg = <0x53>;
 	};
 
 	rtc@51 {
 		compatible = "nxp,pcf2127", "pcf2127-rtc";
 		reg = <0x51>;
-	};
-
-	bmc@8 {
-		compatible = "tp,mitx2-bmc", "t-platforms,mitx2-bmc";
-		reg = <0x08>;
 	};
 };
 
@@ -101,6 +122,7 @@
 &spi2 {
 	status = "okay";
 	num-cs = <1>;
+	cs-gpios = <&porta 0 GPIO_ACTIVE_LOW>;
 
 	boot_flash: n25q128a11@0 {
 		#address-cells = <1>;
