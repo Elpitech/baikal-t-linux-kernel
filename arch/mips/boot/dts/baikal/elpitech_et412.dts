@@ -162,6 +162,10 @@
 	};
 };
 
+&uart1 {
+	status = "okay";
+};
+
 &pvt {
 	status = "okay";
 };
