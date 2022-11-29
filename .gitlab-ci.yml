@@ -47,13 +47,13 @@ mitx-extra:
 et402-smarc:
   variables:
     DEFCONFIG: elpitech_et402_defconfig
-    DTBTARGET: baikal/elpitech_et402.dtb
+    DTBTARGET: baikal/elpitech_et402.dtb baikal/tplatforms_msbt2.dtb
     BOARD: "et402"
   <<: *build_kernel_dfn
 
 et412-brp:
   variables:
     DEFCONFIG: elpitech_et412_defconfig
-    DTBTARGET: baikal/elpitech_et412.dtb
+    DTBTARGET: baikal/elpitech_et412.dtb baikal/tplatforms_mitx.dtb
     BOARD: "et412"
   <<: *build_kernel_dfn
