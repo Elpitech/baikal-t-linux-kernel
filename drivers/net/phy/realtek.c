@@ -113,6 +113,11 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 		reg &= ~RTL8211F_TX_DELAY;
 
 	phy_write(phydev, 0x11, reg);
+
+	/* Set LED config */
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd04);
+	phy_write(phydev, 0x10, 0x822b);
+
 	/* restore to default page 0 */
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
 
