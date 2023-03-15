@@ -786,6 +786,8 @@ static int smi_connector_mode_valid(struct drm_connector *connector,
 	
 	if (vrefresh > 61 || (vrefresh > 50 && vrefresh < 59))  //We only support and use 30Hz or 60Hz mode currently.
 			return MODE_NOMODE;
+	else if((mode->hdisplay > 1920) && (g_specId == SPC_SM750))  //only FHD for SM750
+			return MODE_NOMODE;
 	else if((mode->hdisplay == 3840) && (vrefresh > 31))  //only support 4K@30Hz
 			return MODE_NOMODE;
 	else
